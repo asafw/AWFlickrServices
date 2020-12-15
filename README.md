@@ -13,7 +13,7 @@
 * iOS 13
 * API Key and Secret obtained from Flickr
 
-## Packege methods
+## Package methods
 
 * OAuth1 flow - Request Token, Authorization, Access Token  
 * Methods not requiring OAuth1 authentication - Get photos, Get image, Get info, Get comments  
