@@ -11,7 +11,8 @@ struct RequestTokenResponse: Decodable {
     let oauth_token_secret: String
 }
 
-public struct AccessTokenResponse: Decodable {
+/// The access token returned after a successful OAuth 1.0a flow.
+public struct AccessTokenResponse: Decodable, Sendable {
     public let fullname: String
     public let oauth_token: String
     public let oauth_token_secret: String

@@ -5,6 +5,182 @@
 
 ---
 
+## Current branch: `v2` (active development)
+
+`master` = v1.0.0 (original, frozen — kept for existing consumers)
+`v2` = modernised v2.0.0 work in progress — all Phase 1 & 2 improvements applied
+
+---
+
+## Overview
+
+A dependency-free Swift Package (SPM) for integrating the Flickr API in iOS apps.
+Covers OAuth 1.0a (three-legged flow) and core Flickr REST methods via a
+protocol-mixin design pattern — consumers conform to `FlickrOAuthProtocol` or
+`FlickrPhotosProtocol` in their view controllers and call the default-implemented
+methods directly.
+
+- **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
+- **v1.0.0:** `master` branch — original 2020 code, frozen
+- **v2.0.0 (WIP):** `v2` branch — modernised, tested, iOS 16+
+
+---
+
+## v2 changes vs v1
+
+| Area | v1 | v2 |
+|---|---|---|
+| `swift-tools-version` | 5.2 | 5.9 |
+| iOS minimum | 13 | 16 |
+| `FlickrEndpoints` | `struct` with `let` | caseless `enum` with `static let` |
+| NS legacy types | `NSDate`, `NSUUID`, `NSCharacterSet`, `NSURLComponents` | pure Swift types |
+| OAuth typo | `encriptedURLWithBaseURL` | `encryptedURLWithBaseURL` |
+| Dead code | `generatePermsURL` + `permsEndpoint` | removed |
+| `URLSession` | hardcoded `.shared` | injected via `FlickrAPIRepository.init(session:)` |
+| HTTP validation | none | `validateHTTPResponse` checks 200–299 |
+| `getImage` caching | unreliable (bare URL dataTask) | `URLRequest(cachePolicy: .returnCacheDataElseLoad)` |
+| `Comment._content` | leading-underscore property | `CodingKeys` mapping, property is `content` |
+| `FlickrPhotosRequest.page`/`per_page` | `String` | `Int` (breaking change) |
+| `Sendable` | — | all public structs conform |
+| Unit tests | placeholder only | 13 tests across 5 suites |
+| CI | none | GitHub Actions `ios.yml` |
+
+---
+
+## Repository layout
+
+```
+AWFlickrServices/
+├── Sources/AWFlickrServices/
+│   ├── FlickrAPIError.swift          ← Public error enum
+│   ├── FlickrAPIRepository.swift     ← Internal HTTP layer (URLSession, injected)
+│   ├── FlickrEndpoints.swift         ← Internal caseless enum of URL / method constants
+│   ├── FlickrModels.swift            ← Public request & response models (Sendable)
+│   ├── FlickrOAuthModels.swift       ← OAuth token models (partially public, Sendable)
+│   ├── FlickrOAuthProtocol.swift     ← Public OAuth protocol + default impl
+│   ├── FlickrOAuthUtilities.swift    ← Internal HMAC-SHA1 signing utilities (pure Swift)
+│   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
+├── Tests/AWFlickrServicesTests/
+│   └── AWFlickrServicesTests.swift   ← 13 unit tests (5 suites)
+├── Package.swift                     ← swift-tools-version:5.9, iOS 16
+├── README.md
+├── AGENTS.md
+└── .github/
+    ├── CONTEXT.md                    ← this file
+    ├── instructions/
+    │   └── awflickrservices.instructions.md
+    └── workflows/
+        └── ios.yml                   ← CI: build + test on macos-15
+```
+
+---
+
+## Public API surface
+
+### Protocols (mixin pattern — conform in a UIViewController)
+
+| Protocol | Requires also | Key method |
+|---|---|---|
+| `FlickrOAuthProtocol` | `ASWebAuthenticationPresentationContextProviding` | `performOAuthFlow(from:apiKey:apiSecret:callbackUrlString:completion:)` |
+| `FlickrPhotosProtocol` | — | `getPhotos`, `getImage`, `getInfo`, `getComments`, `fave`, `unfave`, `comment` |
+
+### FlickrPhotosProtocol methods
+
+| Method | Auth required | Returns |
+|---|---|---|
+| `getPhotos(apiKey:photosRequest:completion:)` | No | `[FlickrPhoto]` |
+| `getImage(from:completion:)` | No | `UIImage` (`returnCacheDataElseLoad`) |
+| `getInfo(apiKey:infoRequest:completion:)` | No | `FlickrInfoResponse` |
+| `getComments(apiKey:commentsRequest:completion:)` | No | `[String]` (comment bodies) |
+| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:completion:)` | Yes (OAuth) | `Void` |
+| `unfave(...)` | Yes (OAuth) | `Void` |
+| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:completion:)` | Yes (OAuth) | `Void` |
+
+### Public models
+
+| Type | Fields |
+|---|---|
+| `FlickrPhoto` | `id`, `secret`, `title`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` (**Int in v2**) |
+| `FlickrFaveRequest` | `photo_id: String` |
+| `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
+| `FlickrInfoRequest` | `photo_id: String`, `secret: String` |
+| `FlickrInfoResponse` | `.photo: PhotoInfo` → `.owner: Owner`, `.dates: Dates`, `.views: String` |
+| `FlickrCommentsRequest` | `photo_id: String` |
+| `AccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
+| `FlickrAPIError` | `.parsingError`, `.networkError`, `.downloadImageError`, `.missingDataError` |
+
+---
+
+## Architecture invariants
+
+- **Protocol mixin pattern** — `FlickrOAuthProtocol` and `FlickrPhotosProtocol` provide
+  default implementations via `extension`. Consumers just conform and call.
+- **Zero external dependencies** — `Package.swift` has no remote package dependencies.
+- **UIKit dependency** — iOS-only. Do not make cross-platform without significant refactoring.
+- **Completion-handler API** — all async operations use `@escaping (Result<T, Error>) -> Void`.
+  Callbacks fire on the URLSession background queue. Callers must dispatch to main for UI.
+- **OAuth 1.0a HMAC-SHA1** — signing key is `apiSecret&oauthTokenSecret`
+  (empty secret for the request-token step → `apiSecret&`).
+- **HTTP validation** — all `dataTask` completions check `200..<300`; non-2xx → `.networkError`.
+- **`FlickrAPIRepository` is injected** — `init(session:)` defaults to `.shared`; 
+  pass a stubbed session for unit testing.
+
+---
+
+## Tests (13 passing)
+
+| Suite | Tests |
+|---|---|
+| `FlickrEndpointsTests` | 2 |
+| `FlickrPhotoTests` | 2 |
+| `FlickrPhotosRequestTests` | 1 |
+| `FlickrModelsDecodingTests` | 4 |
+| `FlickrAPIRepositoryURLBuildingTests` | 4 |
+
+Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
+
+---
+
+## Build and test
+
+```bash
+cd ~/Desktop/asafw/AWFlickrServices
+# Build
+xcodebuild -scheme AWFlickrServices -destination "generic/platform=iOS Simulator" build
+# Test
+xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test
+```
+
+---
+
+## Commit history
+
+```
+(v2 branch — to be filled after first v2 commit)
+2977c1d  docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
+442d7cb  Updated total JSON field from String to Int
+febaa49  Fixed typo in Readme
+ccd3bc5  Version 1.0.0
+9320964  Initial commit
+```
+
+---
+
+## Remaining work (Phase 3–4, future)
+
+- Change `FlickrPhotosRequest.page`/`per_page` public init already done (Int)
+- Phase 3: `FlickrAPIRepository` injection via protocol (currently instantiated per-method-call)
+- Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
+- Phase 4: `FlickrService` class wrapper for SwiftUI consumers
+- Tag `2.0.0` on `v2` branch when Phase 3–4 are complete, then merge to master
+
+
+> Authoritative AI session state. Always read this before making changes.
+> Update at the end of every session that touches code.
+
+---
+
 ## Overview
 
 A dependency-free Swift Package (SPM) for integrating the Flickr API in iOS apps.

@@ -5,20 +5,23 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-public struct FlickrPhoto: Decodable {
+/// A single Flickr photo returned from a search or faves response.
+public struct FlickrPhoto: Decodable, Sendable {
     public let id: String
     let owner: String?
     public let secret: String
     let server: String
     let farm: Int
     public let title: String
-    
+
+    /// Returns the URL string for the small-square thumbnail (75×75 px).
     public func thumbnailPhotoURLString() -> String {
-        return String(format: FlickrEndpoints().thumbnailPhotoUrlTemplate, String(farm), server, id, secret)
+        String(format: FlickrEndpoints.thumbnailPhotoUrlTemplate, String(farm), server, id, secret)
     }
-    
+
+    /// Returns the URL string for the large photo (up to 1024px on longest side).
     public func largePhotoURLString() -> String {
-        return String(format: FlickrEndpoints().largePhotoUrlTemplate, String(farm), server, id, secret)
+        String(format: FlickrEndpoints.largePhotoUrlTemplate, String(farm), server, id, secret)
     }
 }
 
@@ -34,68 +37,74 @@ struct FlickrPhotosResponse: Decodable {
     let photos: FlickrPhotos
 }
 
-public struct FlickrPhotosRequest: Encodable {
+/// Parameters for a Flickr photo search request.
+public struct FlickrPhotosRequest: Encodable, Sendable {
     public let text: String
-    public let page: String
-    public let per_page: String
-    
-    public init(text: String, page: String, per_page: String) {
+    public let page: Int
+    public let per_page: Int
+
+    public init(text: String, page: Int, per_page: Int) {
         self.text = text
         self.page = page
         self.per_page = per_page
     }
 }
 
-public struct FlickrFaveRequest: Encodable {
+/// Request model for faving or unfaving a photo.
+public struct FlickrFaveRequest: Encodable, Sendable {
     public let photo_id: String
-    
+
     public init(photo_id: String) {
         self.photo_id = photo_id
     }
 }
 
-public struct FlickrCommentRequest: Encodable {
+/// Request model for posting a comment on a photo.
+public struct FlickrCommentRequest: Encodable, Sendable {
     public let photo_id: String
     public let comment_text: String
-    
+
     public init(photo_id: String, comment_text: String) {
         self.photo_id = photo_id
         self.comment_text = comment_text
     }
 }
 
-public struct FlickrInfoRequest: Encodable {
+/// Request model for fetching info about a specific photo.
+public struct FlickrInfoRequest: Encodable, Sendable {
     public let photo_id: String
     public let secret: String
-    
+
     public init(photo_id: String, secret: String) {
         self.photo_id = photo_id
         self.secret = secret
     }
 }
 
-public struct FlickrInfoResponse: Decodable {
+/// Top-level response from `flickr.photos.getInfo`.
+public struct FlickrInfoResponse: Decodable, Sendable {
     public let photo: PhotoInfo
 }
 
-public struct PhotoInfo: Decodable {
+public struct PhotoInfo: Decodable, Sendable {
     public let owner: Owner
     public let dates: Dates
     public let views: String
 }
 
-public struct Owner: Decodable {
+public struct Owner: Decodable, Sendable {
     public let realname: String
     public let location: String?
 }
 
-public struct Dates: Decodable {
+public struct Dates: Decodable, Sendable {
     public let taken: String
 }
 
-public struct FlickrCommentsRequest: Encodable {
+/// Request model for fetching comments on a photo.
+public struct FlickrCommentsRequest: Encodable, Sendable {
     let photo_id: String
-    
+
     public init(photo_id: String) {
         self.photo_id = photo_id
     }
@@ -110,6 +119,10 @@ struct CommentInfo: Decodable {
 }
 
 struct Comment: Decodable {
-    let _content: String //Note underscore is not standard
+    let content: String
+
+    private enum CodingKeys: String, CodingKey {
+        case content = "_content"
+    }
 }
 

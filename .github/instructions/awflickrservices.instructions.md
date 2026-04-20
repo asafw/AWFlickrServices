@@ -111,12 +111,10 @@ to `ASWebAuthenticationPresentationContextProviding`.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`.
   For the request-token step, `oauthTokenSecret` is empty (`""`), so the key
   is `"apiSecret&"`. This is correct per the OAuth 1.0a spec.
-- **`FlickrPhotosRequest.page` / `per_page` are `String`** — this is a known
-  quirk. Do not change them to `Int` without also updating `FlickrAPIRepository`
-  (which currently passes them as strings in URL query params).
-- **`FlickrPhotosurlTemplate`** — thumbnail uses `_s` suffix (small square, 75×75),
-  large uses `_b` suffix (large, 1024px). Both follow the Flickr static URL scheme:
-  `https://farmN.staticflickr.com/server/id_secret_size.jpg`.
+- **`FlickrPhotosRequest.page` / `per_page` are `Int`** (v2 — changed from `String` in v1).
+  The conversion to string is done internally inside `FlickrAPIRepository`.
+- **`Comment.content`** — the Flickr JSON field `_content` is decoded via `CodingKeys`
+  into the Swift-idiomatic property name `content`. Do not revert to `_content`.
 
 ---
 
