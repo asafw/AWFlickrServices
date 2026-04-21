@@ -106,7 +106,7 @@ AWFlickrServices/
 
 | Type | Fields |
 |---|---|
-| `FlickrPhoto` | `id`, `secret`, `title`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `FlickrPhoto` | `id`, `secret`, `title`, `owner`, `server`, `farm`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
 | `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` (**Int in v2**) |
 | `FlickrFaveRequest` | `photo_id: String` |
 | `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
@@ -134,7 +134,7 @@ AWFlickrServices/
 
 ---
 
-## Tests (13 passing)
+## Tests (17 passing)
 
 | Suite | Tests |
 |---|---|
@@ -142,7 +142,7 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 |
 | `FlickrPhotosRequestTests` | 1 |
 | `FlickrModelsDecodingTests` | 4 |
-| `FlickrAPIRepositoryURLBuildingTests` | 4 |
+| `FlickrAPIRepositoryURLBuildingTests` | 8 |
 
 Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
 
@@ -164,6 +164,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 
 ```
 (v2 branch)
+1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests for getComments/fave/unfave/comment
 2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown, remove obsolete Linux test files, README v2
 93d5920   feat(v2): Phase 1+2 modernisation — NS types, FlickrEndpoints enum, URLSession injection, HTTP validation, page/per_page Int, Sendable, 13 unit tests, CI workflow
 2977c1d   docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
@@ -251,7 +252,7 @@ AWFlickrServices/
 
 | Type | Fields |
 |---|---|
-| `FlickrPhoto` | `id`, `secret`, `title`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `FlickrPhoto` | `id`, `secret`, `title`, `owner`, `server`, `farm`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
 | `FlickrPhotosRequest` | `text: String`, `page: String`, `per_page: String` |
 | `FlickrFaveRequest` | `photo_id: String` |
 | `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
