@@ -19,6 +19,9 @@ struct ContentView: View {
     private var navigationContent: some View {
         VStack(spacing: 0) {
             apiKeyRow
+            Divider()
+            AuthView(viewModel: viewModel)
+            Divider()
             searchBar
             Divider()
             resultArea
@@ -76,7 +79,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            PhotoGridView(photos: viewModel.photos, apiKey: viewModel.apiKey)
+            PhotoGridView(photos: viewModel.photos, viewModel: viewModel)
         }
     }
 }

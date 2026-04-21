@@ -6,7 +6,7 @@ import AWFlickrServices
 struct PhotoGridView: View {
 
     let photos: [FlickrPhoto]
-    let apiKey: String
+    @ObservedObject var viewModel: DemoViewModel
 
     private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160))]
 
@@ -15,7 +15,7 @@ struct PhotoGridView: View {
             LazyVGrid(columns: columns, spacing: 8) {
                 ForEach(photos, id: \.id) { photo in
                     NavigationLink {
-                        PhotoDetailView(photo: photo, apiKey: apiKey)
+                        PhotoDetailView(photo: photo, viewModel: viewModel)
                     } label: {
                         ThumbnailView(urlString: photo.thumbnailPhotoURLString())
                     }
