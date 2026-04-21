@@ -28,5 +28,8 @@ let package = Package(
         .testTarget(
             name: "AWFlickrServicesTests",
             dependencies: ["AWFlickrServices"]),
+        .testTarget(
+            name: "AWFlickrServicesIntegrationTests",
+            dependencies: ["AWFlickrServices"]),
     ]
 )
