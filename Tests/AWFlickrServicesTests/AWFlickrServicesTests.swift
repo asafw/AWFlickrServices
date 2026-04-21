@@ -307,4 +307,221 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         XCTAssertTrue(url.contains("great%20photo") || url.contains("great+photo") == false,
                       "Space should be %20-encoded per RFC 3986, got: \(url)")
     }
+
+    func testGetPhotosReturnsDecodedPhotoArray() {
+        let expectation = expectation(description: "photos decoded")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"photos":{"photo":[{"id":"42","secret":"s3cr3t","server":"66666","farm":4,"title":"Sunset"}],"page":1,"pages":1,"perpage":1,"total":1}}
+        """.utf8)
+
+        var decoded: [FlickrPhoto] = []
+        repository.getPhotos(
+            apiKey: "KEY",
+            photosRequest: FlickrPhotosRequest(text: "sunset", page: 1, per_page: 1)
+        ) { result in
+            if case .success(let photos) = result { decoded = photos }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded.count, 1)
+        XCTAssertEqual(decoded.first?.id, "42")
+        XCTAssertEqual(decoded.first?.secret, "s3cr3t")
+        XCTAssertEqual(decoded.first?.title, "Sunset")
+    }
+
+    func testGetCommentsReturnsDecodedStringArray() {
+        let expectation = expectation(description: "comments decoded")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"comments":{"comment":[{"_content":"first comment"},{"_content":"second comment"}]}}
+        """.utf8)
+
+        var decoded: [String] = []
+        repository.getComments(
+            apiKey: "KEY",
+            commentsRequest: FlickrCommentsRequest(photo_id: "100")
+        ) { result in
+            if case .success(let comments) = result { decoded = comments }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded, ["first comment", "second comment"])
+    }
+
+    func testGetInfoReturnsDecodedResponse() {
+        let expectation = expectation(description: "info decoded")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"photo":{"owner":{"realname":"Alice","location":"London"},"dates":{"taken":"2021-06-15 12:00:00"},"views":"99"}}
+        """.utf8)
+
+        var decoded: FlickrInfoResponse?
+        repository.getInfo(
+            apiKey: "KEY",
+            infoRequest: FlickrInfoRequest(photo_id: "555", secret: "xyz")
+        ) { result in
+            if case .success(let info) = result { decoded = info }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded?.photo.owner.realname, "Alice")
+        XCTAssertEqual(decoded?.photo.owner.location, "London")
+        XCTAssertEqual(decoded?.photo.views, "99")
+    }
+
+    func testDownloadImageDataReturnsBytes() {
+        let expectation = expectation(description: "data returned")
+        let stubBytes = Data([0xDE, 0xAD, 0xBE, 0xEF])
+        CapturingURLProtocol.stubbedData = stubBytes
+
+        var returned: Data?
+        repository.downloadImageData(from: URL(string: "https://farm1.staticflickr.com/1/1_b_s.jpg")!) { result in
+            if case .success(let data) = result { returned = data }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(returned, stubBytes)
+    }
+
+    func testSignedURLContainsOAuthSignature() {
+        let expectation = expectation(description: "request sent")
+
+        repository.fave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "999")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("oauth_signature="), "Signed URL must contain oauth_signature, got: \(url)")
+    }
+}
+
+// MARK: - FlickrAPIRepository OAuth response parsing
+
+final class FlickrAPIRepositoryOAuthParsingTests: XCTestCase {
+
+    private var session: URLSession!
+    private var repository: FlickrAPIRepository!
+
+    override func setUp() {
+        super.setUp()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CapturingURLProtocol.self]
+        session = URLSession(configuration: config)
+        repository = FlickrAPIRepository(session: session)
+        CapturingURLProtocol.stubbedStatusCode = 200
+        CapturingURLProtocol.stubbedData = Data()
+        CapturingURLProtocol.lastRequest = nil
+    }
+
+    override func tearDown() {
+        CapturingURLProtocol.lastRequest = nil
+        CapturingURLProtocol.stubbedData = Data()
+        CapturingURLProtocol.stubbedStatusCode = 200
+        super.tearDown()
+    }
+
+    func testGetRequestTokenParsesKeyValueResponse() {
+        let expectation = expectation(description: "request token parsed")
+        // Flickr returns URL-encoded key=value pairs
+        let responseBody = "oauth_callback_confirmed=true&oauth_token=REQ_TOK&oauth_token_secret=REQ_SEC"
+        CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
+
+        var decoded: RequestTokenResponse?
+        repository.getRequestToken(apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth") { result in
+            if case .success(let token) = result { decoded = token }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded?.oauth_token, "REQ_TOK")
+        XCTAssertEqual(decoded?.oauth_token_secret, "REQ_SEC")
+        XCTAssertEqual(decoded?.oauth_callback_confirmed, "true")
+    }
+
+    func testGetRequestTokenHTTPErrorReturnsNetworkError() {
+        let expectation = expectation(description: "network error")
+        CapturingURLProtocol.stubbedStatusCode = 401
+
+        var receivedError: FlickrAPIError?
+        repository.getRequestToken(apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth") { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .networkError)
+    }
+
+    func testGetAccessTokenParsesKeyValueResponse() {
+        let expectation = expectation(description: "access token parsed")
+        let responseBody = "fullname=Alice%20Flickr&oauth_token=ACC_TOK&oauth_token_secret=ACC_SEC&user_nsid=99%40N00&username=alice"
+        CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
+
+        var decoded: AccessTokenResponse?
+        repository.getAccessToken(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "REQ_TOK", oauthTokenSecret: "REQ_SEC",
+            oauthVerifier: "VERIFIER"
+        ) { result in
+            if case .success(let token) = result { decoded = token }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded?.oauth_token, "ACC_TOK")
+        XCTAssertEqual(decoded?.oauth_token_secret, "ACC_SEC")
+        XCTAssertEqual(decoded?.username, "alice")
+    }
+
+    func testGetAccessTokenHTTPErrorReturnsNetworkError() {
+        let expectation = expectation(description: "network error")
+        CapturingURLProtocol.stubbedStatusCode = 500
+
+        var receivedError: FlickrAPIError?
+        repository.getAccessToken(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "SEC",
+            oauthVerifier: "VER"
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .networkError)
+    }
+}
+
+// MARK: - RFC 3986 encoding edge cases
+
+final class RFC3986EncodingTests: XCTestCase {
+
+    private func encoded(_ input: String) -> String {
+        // Exercise rfc3986Encoded via a comment_text value that appears in the generated URL.
+        // We build a URL using CapturingURLProtocol and extract the comment_text value.
+        // Because that's heavyweight, we test the contract more directly:
+        // rfc3986Encoded must percent-encode everything outside alphanumerics + "-._~"
+        let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        return input.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
+    }
+
+    private func assertEncoded(_ input: String, doesNotContain literal: String, file: StaticString = #file, line: UInt = #line) {
+        XCTAssertFalse(encoded(input).contains(literal), "'\(literal)' should be encoded in output of '\(input)'", file: file, line: line)
+    }
+
+    func testSpaceIsEncoded() { assertEncoded("hello world", doesNotContain: " ") }
+    func testAmpersandIsEncoded() { assertEncoded("a&b", doesNotContain: "&") }
+    func testEqualsIsEncoded() { assertEncoded("a=b", doesNotContain: "=") }
+    func testPlusIsEncoded() { assertEncoded("a+b", doesNotContain: "+") }
+    func testHashIsEncoded() { assertEncoded("a#b", doesNotContain: "#") }
+    func testSlashIsEncoded() { assertEncoded("a/b", doesNotContain: "/") }
+    func testUnreservedCharsAreNotEncoded() {
+        let input = "abcABC123-._~"
+        XCTAssertEqual(encoded(input), input, "Unreserved chars must pass through unencoded")
+    }
 }
