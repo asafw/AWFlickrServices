@@ -71,7 +71,9 @@ extension FlickrOAuthProtocol {
     ) {
         let webAuthSession = ASWebAuthenticationSession(
             url: authURL,
-            callbackURLScheme: callbackUrlString
+            // callbackURLScheme must be the URL scheme only (e.g. "myapp"),
+            // not the full callback URL (e.g. "myapp://oauth").
+            callbackURLScheme: URL(string: callbackUrlString)?.scheme ?? callbackUrlString
         ) { callbackURL, error in
             guard error == nil, let successURL = callbackURL else {
                 completion(.failure(error ?? FlickrAPIError.networkError))

@@ -233,6 +233,28 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
     }
 
+    /// A13: fave returning stat:fail (HTTP 200) must propagate as .failure, not silently succeed.
+    func testFaveStatFailReturnsAPIError() {
+        let expectation = expectation(description: "fave stat:fail")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":1,"message":"Photo not found"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.fave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "123")
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 1, message: "Photo not found"),
+            "stat:fail from fave must surface as .apiError, not .success")
+    }
+
     func testGetInfoRequestContainsInfoMethod() {
         let expectation = expectation(description: "request sent")
         CapturingURLProtocol.stubbedData = Data("""
@@ -514,6 +536,30 @@ final class FlickrAPIRepositoryOAuthParsingTests: XCTestCase {
 
         wait(for: [expectation], timeout: 2)
         XCTAssertEqual(receivedError, .networkError)
+    }
+
+    /// A9: token secrets can contain `=` (base64 padding). The parser must split on the
+    /// first `=` only, not discard pairs where the value contains additional `=` characters.
+    func testAccessTokenSecretWithEqualsSignIsParsed() {
+        let expectation = expectation(description: "token with = parsed")
+        // oauth_token_secret value contains a trailing `=` (base64 padding)
+        let responseBody = "fullname=Alice&oauth_token=TOK&oauth_token_secret=SEC==&user_nsid=1@N00&username=alice"
+        CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
+
+        var decoded: AccessTokenResponse?
+        repository.getAccessToken(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "REQ", oauthTokenSecret: "REQSEC",
+            oauthVerifier: "VER"
+        ) { result in
+            if case .success(let token) = result { decoded = token }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded?.oauth_token_secret, "SEC==",
+            "oauth_token_secret with '=' padding must be parsed correctly")
+        XCTAssertEqual(decoded?.oauth_token, "TOK")
     }
 }
 

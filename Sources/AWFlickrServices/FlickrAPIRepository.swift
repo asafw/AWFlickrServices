@@ -86,8 +86,12 @@ struct FlickrAPIRepository {
             }
             var dict = [String: String]()
             decoded.components(separatedBy: "&").forEach {
-                let parts = $0.components(separatedBy: "=")
-                if parts.count == 2 { dict[parts[0]] = parts[1] }
+                // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
+                if let range = $0.range(of: "=") {
+                    let key = String($0[..<range.lowerBound])
+                    let value = String($0[range.upperBound...])
+                    if !key.isEmpty { dict[key] = value }
+                }
             }
             guard
                 let confirmed = dict["oauth_callback_confirmed"],
@@ -135,8 +139,12 @@ struct FlickrAPIRepository {
             }
             var dict = [String: String]()
             decoded.components(separatedBy: "&").forEach {
-                let parts = $0.components(separatedBy: "=")
-                if parts.count == 2 { dict[parts[0]] = parts[1] }
+                // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
+                if let range = $0.range(of: "=") {
+                    let key = String($0[..<range.lowerBound])
+                    let value = String($0[range.upperBound...])
+                    if !key.isEmpty { dict[key] = value }
+                }
             }
             guard
                 let fullName = dict["fullname"],
@@ -173,12 +181,17 @@ struct FlickrAPIRepository {
         ) else { completion(.failure(FlickrAPIError.parsingError)); return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { _, response, error in
+        session.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
             guard validateHTTPResponse(response) else {
                 completion(.failure(FlickrAPIError.networkError)); return
             }
-            completion(.success(()))
+            do {
+                if let data { try checkFlickrError(data) }
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
         }.resume()
     }
 
@@ -197,12 +210,17 @@ struct FlickrAPIRepository {
         ) else { completion(.failure(FlickrAPIError.parsingError)); return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { _, response, error in
+        session.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
             guard validateHTTPResponse(response) else {
                 completion(.failure(FlickrAPIError.networkError)); return
             }
-            completion(.success(()))
+            do {
+                if let data { try checkFlickrError(data) }
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
         }.resume()
     }
 
@@ -221,12 +239,17 @@ struct FlickrAPIRepository {
         ) else { completion(.failure(FlickrAPIError.parsingError)); return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { _, response, error in
+        session.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
             guard validateHTTPResponse(response) else {
                 completion(.failure(FlickrAPIError.networkError)); return
             }
-            completion(.success(()))
+            do {
+                if let data { try checkFlickrError(data) }
+                completion(.success(()))
+            } catch {
+                completion(.failure(error))
+            }
         }.resume()
     }
 
@@ -303,6 +326,18 @@ struct FlickrAPIRepository {
             )
         }
         return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    /// Checks `data` for a Flickr API-level error (`stat:fail`) without full decoding.
+    /// Used by void-returning POST endpoints (fave, unfave, comment).
+    private func checkFlickrError(_ data: Data) throws {
+        if let envelope = try? JSONDecoder().decode(FlickrErrorEnvelope.self, from: data),
+           envelope.stat == "fail" {
+            throw FlickrAPIError.apiError(
+                code: envelope.code ?? -1,
+                message: envelope.message ?? "Unknown error"
+            )
+        }
     }
 
     private func generateURL(urlString: String, queryParams: [String: String]? = nil) -> URL? {
