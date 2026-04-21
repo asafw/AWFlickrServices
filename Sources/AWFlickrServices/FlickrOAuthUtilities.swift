@@ -166,12 +166,16 @@ private func sortedURLString(url: String, parameters: [String: String], urlEscap
 private func urlEncodedString(string: String) -> String { rfc3986Encoded(string) }
 private func oauthEncodedString(string: String) -> String { rfc3986Encoded(string) }
 
-private func rfc3986Encoded(_ string: String) -> String {
+/// RFC 3986 percent-encoding — only unreserved characters pass through unencoded.
+/// Internal so unit tests can verify the encoding directly.
+func rfc3986Encoded(_ string: String) -> String {
     let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
     return string.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
 }
 
-private func hmacsha1EncryptedString(string: String, key: String) -> String {
+/// HMAC-SHA1 over `string` using `key`, returned as Base64.
+/// Internal so unit tests can verify against known test vectors.
+func hmacsha1EncryptedString(string: String, key: String) -> String {
     var digest = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
     CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA1), key, key.utf8.count, string, string.utf8.count, &digest)
     return Data(digest).base64EncodedString()

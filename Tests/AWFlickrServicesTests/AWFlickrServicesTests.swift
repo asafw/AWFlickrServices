@@ -545,3 +545,166 @@ final class RFC3986EncodingTests: XCTestCase {
         XCTAssertEqual(encoded(input), input, "Unreserved chars must pass through unencoded")
     }
 }
+
+// MARK: - OAuth 1.0a utility correctness
+
+final class OAuthUtilitiesTests: XCTestCase {
+
+    // MARK: - HMAC-SHA1 correctness
+
+    /// RFC 2202 test case 2 — the definitive spec test vector for HMAC-SHA1.
+    /// If this fails the signing of every OAuth request will be wrong.
+    func testHMACSHA1RFC2202TestCase2() {
+        // key = "Jefe", data = "what do ya want for nothing?"
+        // Expected digest (hex): effcdf6ae5eb2fa2d27416d5f184df9c259a7c79
+        let result = hmacsha1EncryptedString(
+            string: "what do ya want for nothing?",
+            key: "Jefe"
+        )
+        XCTAssertEqual(
+            result, "7/zfauXrL6LSdBbV8YTfnCWafHk=",
+            "HMAC-SHA1 does not match RFC 2202 test case 2 — every OAuth signature will be wrong"
+        )
+    }
+
+    // MARK: - OAuth parameter presence
+
+    /// All seven required OAuth 1.0a parameters must be present in a signed URL.
+    func testAllRequiredOAuthParamsPresent() {
+        let url = generateFaveURL(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOKEN", oauthTokenSecret: "TOKSEC",
+            photoId: "123"
+        )!
+        let query = url.query ?? ""
+        for param in [
+            "oauth_nonce", "oauth_timestamp", "oauth_consumer_key",
+            "oauth_signature_method", "oauth_version", "oauth_token", "oauth_signature"
+        ] {
+            XCTAssertTrue(query.contains(param), "Missing required OAuth param: \(param)")
+        }
+    }
+
+    func testSignatureMethodIsHMACSHA1() {
+        let url = generateFaveURL(
+            apiKey: "K", apiSecret: "S",
+            oauthToken: "T", oauthTokenSecret: "TS",
+            photoId: "1"
+        )!
+        XCTAssertTrue(
+            url.query?.contains("oauth_signature_method=HMAC-SHA1") == true,
+            "oauth_signature_method must be HMAC-SHA1"
+        )
+    }
+
+    func testOAuthVersionIs1Point0() {
+        let url = generateFaveURL(
+            apiKey: "K", apiSecret: "S",
+            oauthToken: "T", oauthTokenSecret: "TS",
+            photoId: "1"
+        )!
+        XCTAssertTrue(
+            url.query?.contains("oauth_version=1.0") == true,
+            "oauth_version must be 1.0"
+        )
+    }
+
+    func testNonceContainsNoHyphens() {
+        for _ in 0..<5 {
+            let url = generateFaveURL(
+                apiKey: "K", apiSecret: "S",
+                oauthToken: "T", oauthTokenSecret: "TS",
+                photoId: "1"
+            )!
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            if let nonce = items.first(where: { $0.name == "oauth_nonce" })?.value {
+                XCTAssertFalse(nonce.contains("-"),
+                    "oauth_nonce must be alphanumeric (no hyphens); got: \(nonce)")
+            } else {
+                XCTFail("oauth_nonce not found in URL")
+            }
+        }
+    }
+
+    // MARK: - Request / access token URL parameters
+
+    func testRequestTokenURLContainsOAuthCallback() {
+        let url = generateRequestTokenURL(
+            apiKey: "KEY", apiSecret: "SECRET",
+            callbackUrlString: "myapp://oauth"
+        )!
+        XCTAssertTrue(
+            url.absoluteString.contains("oauth_callback"),
+            "Request token URL must contain oauth_callback"
+        )
+    }
+
+    func testAccessTokenURLContainsOAuthVerifier() {
+        let url = generateAccessTokenURL(
+            apiKey: "K", apiSecret: "S",
+            oauthToken: "TOK", oauthTokenSecret: "SEC",
+            oauthVerifier: "VER123"
+        )!
+        let query = url.query ?? ""
+        XCTAssertTrue(query.contains("oauth_verifier"), "Access token URL must contain oauth_verifier")
+        XCTAssertTrue(query.contains("VER123"), "oauth_verifier value must appear in URL")
+    }
+
+    func testAccessTokenURLContainsOAuthToken() {
+        let url = generateAccessTokenURL(
+            apiKey: "K", apiSecret: "S",
+            oauthToken: "MYTOK", oauthTokenSecret: "SEC",
+            oauthVerifier: "VER"
+        )!
+        let query = url.query ?? ""
+        XCTAssertTrue(query.contains("oauth_token"), "Access token URL must contain oauth_token")
+        XCTAssertTrue(query.contains("MYTOK"), "oauth_token value must appear in URL")
+    }
+
+    // MARK: - Signing key format
+
+    /// Proves that the request-token step signs with key `"apiSecret&"` (empty token secret),
+    /// as required by OAuth 1.0a section 3.4.2.
+    /// Reconstructs the signature base string from the generated URL and recomputes
+    /// the expected signature — if the signing key were wrong the values would differ.
+    func testRequestTokenSigningKeyUsesEmptyTokenSecret() {
+        let apiKey    = "testkey123"
+        let apiSecret = "testsecret456"
+
+        guard let url = generateRequestTokenURL(
+            apiKey: apiKey, apiSecret: apiSecret,
+            callbackUrlString: "myapp://oauth"
+        ) else { XCTFail("generateRequestTokenURL returned nil"); return }
+
+        guard
+            let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+            let queryItems = components.queryItems
+        else { XCTFail("Could not parse URL components"); return }
+
+        var params = [String: String]()
+        for item in queryItems { if let v = item.value { params[item.name] = v } }
+
+        guard let extractedSignature = params["oauth_signature"]
+        else { XCTFail("oauth_signature not found"); return }
+
+        // Reconstruct the OAuth 1.0a signature base string from the URL query items.
+        var baseParams = params
+        baseParams.removeValue(forKey: "oauth_signature")
+        let sortedPairs = baseParams.keys.sorted()
+            .map { "\(rfc3986Encoded($0))=\(rfc3986Encoded(baseParams[$0]!))" }
+            .joined(separator: "&")
+        let baseURL = FlickrEndpoints.requestTokenEndpoint
+        let signatureBaseString = "GET&\(rfc3986Encoded(baseURL))&\(rfc3986Encoded(sortedPairs))"
+
+        // Request-token signing key = "apiSecret&" (token secret is empty at this step)
+        let expectedSignature = hmacsha1EncryptedString(
+            string: signatureBaseString,
+            key: "\(apiSecret)&"
+        )
+
+        XCTAssertEqual(
+            extractedSignature, expectedSignature,
+            "Request token signing key must be 'apiSecret&' (empty token secret per OAuth 1.0a spec)"
+        )
+    }
+}

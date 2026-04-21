@@ -18,17 +18,19 @@
 import XCTest
 @testable import AWFlickrServices
 
-private let apiKey: String? = {
-    // 1. Shell env var (works for swift test on macOS CLI)
-    if let v = ProcessInfo.processInfo.environment["FLICKR_API_KEY"], !v.isEmpty { return v }
-    // 2. Temp file — write key here to unblock xcodebuild's sandboxed test runner:
-    //    echo "your_key" > /tmp/flickr_api_key
-    if let v = try? String(contentsOfFile: "/tmp/flickr_api_key", encoding: .utf8) {
+/// Reads a credential from an env var or a /tmp file of the same name.
+/// e.g. `readCredential("FLICKR_API_KEY")` tries env var first, then /tmp/flickr_api_key.
+private func readCredential(_ envName: String) -> String? {
+    if let v = ProcessInfo.processInfo.environment[envName], !v.isEmpty { return v }
+    let fileName = envName.lowercased().replacingOccurrences(of: "_", with: "_")
+    if let v = try? String(contentsOfFile: "/tmp/\(fileName)", encoding: .utf8) {
         let trimmed = v.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { return trimmed }
     }
     return nil
-}()
+}
+
+private let apiKey: String? = readCredential("FLICKR_API_KEY")
 
 final class FlickrSearchIntegrationTests: XCTestCase {
 
@@ -44,9 +46,23 @@ final class FlickrSearchIntegrationTests: XCTestCase {
     private func requireAPIKey(file: StaticString = #file, line: UInt = #line) throws -> String {
         try XCTSkipIf(
             apiKey == nil || apiKey!.isEmpty,
-            "Set FLICKR_API_KEY environment variable to run integration tests"
+            "Set FLICKR_API_KEY environment variable (or write to /tmp/flickr_api_key) to run integration tests"
         )
         return apiKey!
+    }
+
+    private func requireCredential(
+        _ name: String,
+        hint: String,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) throws -> String {
+        let value = readCredential(name)
+        try XCTSkipIf(
+            value == nil || value!.isEmpty,
+            "Set \(name) env var or write to /tmp/\(name.lowercased()) to run this test (\(hint))"
+        )
+        return value!
     }
 
     // MARK: - Search
@@ -492,5 +508,162 @@ final class FlickrSearchIntegrationTests: XCTestCase {
             XCTAssertEqual(results[term], 3, "'\(term)' search should return 3 photos")
         }
         print("✅ Concurrent searches OK: \(results)")
+    }
+}
+
+// MARK: - Live OAuth 1.0a signing tests
+
+/// Tests that verify the HMAC-SHA1 signing chain works end-to-end against the real Flickr servers.
+///
+/// Credentials required (each as env var or /tmp file):
+///   FLICKR_API_KEY    — public key   (required for all tests)
+///   FLICKR_API_SECRET — shared secret (required for all tests in this suite)
+///   FLICKR_OAUTH_TOKEN        — user access token (required for fave/unfave/comment)
+///   FLICKR_OAUTH_TOKEN_SECRET — user token secret (required for fave/unfave/comment)
+///
+/// Write credentials:
+///   echo "your_secret"       > /tmp/flickr_api_secret
+///   echo "your_token"        > /tmp/flickr_oauth_token
+///   echo "your_token_secret" > /tmp/flickr_oauth_token_secret
+final class FlickrOAuthIntegrationTests: XCTestCase {
+
+    private var repository: FlickrAPIRepository!
+
+    override func setUp() {
+        super.setUp()
+        repository = FlickrAPIRepository()
+    }
+
+    // MARK: - Helpers
+
+    private func requireKey(file: StaticString = #file, line: UInt = #line) throws -> String {
+        let v = readCredential("FLICKR_API_KEY")
+        try XCTSkipIf(v == nil || v!.isEmpty,
+            "Write your API key to /tmp/flickr_api_key to run OAuth integration tests",
+            file: file, line: line)
+        return v!
+    }
+
+    private func requireSecret(file: StaticString = #file, line: UInt = #line) throws -> String {
+        let v = readCredential("FLICKR_API_SECRET")
+        try XCTSkipIf(v == nil || v!.isEmpty,
+            "Write your API secret to /tmp/flickr_api_secret to run OAuth signing tests",
+            file: file, line: line)
+        return v!
+    }
+
+    private func requireOAuthToken(file: StaticString = #file, line: UInt = #line) throws -> (token: String, secret: String) {
+        let tok = readCredential("FLICKR_OAUTH_TOKEN")
+        let sec = readCredential("FLICKR_OAUTH_TOKEN_SECRET")
+        try XCTSkipIf(tok == nil || sec == nil,
+            "Write token to /tmp/flickr_oauth_token and secret to /tmp/flickr_oauth_token_secret",
+            file: file, line: line)
+        return (tok!, sec!)
+    }
+
+    // MARK: - getRequestToken (validates HMAC-SHA1 signing end-to-end)
+
+    /// Calls `getRequestToken` with real credentials.
+    /// Flickr will reject the request (HTTP 401) if the HMAC-SHA1 signature is wrong,
+    /// the nonce format is invalid, or the signing key uses the wrong token-secret.
+    /// A successful response with `oauth_callback_confirmed == "true"` proves the entire
+    /// signing chain (key format, base string, HMAC-SHA1, nonce, parameter encoding) is correct.
+    func testGetRequestTokenSigningIsAcceptedByFlickr() throws {
+        let key    = try requireKey()
+        let secret = try requireSecret()
+
+        let exp = expectation(description: "request token")
+        var result: Result<RequestTokenResponse, Error>?
+
+        repository.getRequestToken(
+            apiKey: key,
+            apiSecret: secret,
+            callbackUrlString: "myapp://oauth"
+        ) { r in
+            result = r
+            exp.fulfill()
+        }
+
+        wait(for: [exp], timeout: 15)
+        switch result! {
+        case .success(let token):
+            XCTAssertEqual(
+                token.oauth_callback_confirmed, "true",
+                "oauth_callback_confirmed should be 'true' — mismatch means signing key or base string is wrong"
+            )
+            XCTAssertFalse(token.oauth_token.isEmpty, "Request token must be non-empty")
+            XCTAssertFalse(token.oauth_token_secret.isEmpty, "Request token secret must be non-empty")
+            print("✅ OAuth request token accepted — token: \(token.oauth_token.prefix(10))...")
+        case .failure(let error):
+            XCTFail("""
+                getRequestToken FAILED — HMAC-SHA1 signing was likely rejected by Flickr.
+                Check: signing key format, base string construction, nonce alphanumeric, RFC 3986 encoding.
+                Error: \(error)
+                """)
+        }
+    }
+
+    // MARK: - Fave / unfave (validates signed POST with user credentials)
+
+    /// Faves then immediately unfaves the first landscape search result.
+    /// Validates that HMAC-SHA1 POST signing works with a real access token.
+    /// Requires FLICKR_OAUTH_TOKEN + FLICKR_OAUTH_TOKEN_SECRET.
+    func testFaveAndUnfaveRoundTrip() throws {
+        let key            = try requireKey()
+        let secret         = try requireSecret()
+        let (token, tSec)  = try requireOAuthToken()
+
+        // Step 1: find a photo to fave
+        let searchExp = expectation(description: "search done")
+        var targetPhoto: FlickrPhoto?
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+        ) { result in
+            if case .success(let photos) = result { targetPhoto = photos.first }
+            searchExp.fulfill()
+        }
+        wait(for: [searchExp], timeout: 10)
+        guard let photo = targetPhoto else { XCTFail("No photo to fave"); return }
+
+        // Step 2: fave
+        let faveExp = expectation(description: "fave done")
+        var faveResult: Result<Void, Error>?
+        repository.fave(
+            apiKey: key, apiSecret: secret,
+            oauthToken: token, oauthTokenSecret: tSec,
+            faveRequest: FlickrFaveRequest(photo_id: photo.id)
+        ) { r in faveResult = r; faveExp.fulfill() }
+        wait(for: [faveExp], timeout: 10)
+
+        switch faveResult! {
+        case .success:
+            print("✅ fave succeeded for photo \(photo.id)")
+        case .failure(let error):
+            // "Photo already in faves" is Flickr error code 3 — acceptable
+            if case FlickrAPIError.apiError(let code, _) = error, code == 3 {
+                print("ℹ️  Photo already faved (code 3) — still proves signing works")
+            } else {
+                XCTFail("fave failed: \(error)")
+                return
+            }
+        }
+
+        // Step 3: unfave (clean up regardless of whether fave was fresh or duplicate)
+        let unfaveExp = expectation(description: "unfave done")
+        var unfaveResult: Result<Void, Error>?
+        repository.unfave(
+            apiKey: key, apiSecret: secret,
+            oauthToken: token, oauthTokenSecret: tSec,
+            faveRequest: FlickrFaveRequest(photo_id: photo.id)
+        ) { r in unfaveResult = r; unfaveExp.fulfill() }
+        wait(for: [unfaveExp], timeout: 10)
+
+        switch unfaveResult! {
+        case .success:
+            print("✅ unfave succeeded — fave/unfave round trip complete")
+        case .failure(let error):
+            XCTFail("unfave failed: \(error)")
+        }
     }
 }
