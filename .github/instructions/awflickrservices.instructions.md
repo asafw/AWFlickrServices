@@ -40,6 +40,20 @@ AWFlickrServices/
 │   └── AWFlickrServicesTests.swift   ← 55 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
+├── Examples/FlickrDemoApp/           ← Shared SwiftUI sources (macOS + iOS)
+│   ├── DemoViewModel.swift           ← #if DEBUG seams: -mockAuth, AUTO_SEARCH, MOCK_PHOTOS, MOCK_DETAIL
+│   └── ContentView.swift             ← .sheet(isPresented: $viewModel.showScreenshotDetail) for MOCK_DETAIL
+├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 16+)
+│   ├── project.yml                   ← Includes FlickrDemoScreenshots UITest target
+│   └── Screenshots/FlickrDemoScreenshots.swift  ← 5 screenshot UITests using MOCK_PHOTOS seam
+├── screenshots/
+│   ├── ios/                          ← 6 PNG screenshots
+│   └── macos/                        ← 3 PNG screenshots
+├── scripts/
+│   ├── ios_screenshots.sh            ← Runs UITests; extracts PNGs via extract_screenshots.py
+│   ├── macos_screenshots.sh          ← 3-launch macOS script (empty, mock photos, mock detail)
+│   ├── extract_screenshots.py        ← Extracts XCTAttachment PNGs from .xcresult bundles
+│   └── capture_macos_window.py       ← Quartz bounds + screencapture -R; no accessibility needed
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets (AWFlickrServices, AWFlickrServicesTests, AWFlickrServicesIntegrationTests, FlickrDemoApp)
 ├── README.md
 └── AGENTS.md

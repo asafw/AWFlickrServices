@@ -82,11 +82,20 @@ AWFlickrServices/
 │   └── PresentationContext.swift     ← ASWebAuthenticationPresentationContextProviding; iOS uses UIWindowScene.keyWindow (iOS 15+)
 ├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 16+); reuses FlickrDemoApp/ sources
 │   ├── project.yml                   ← XcodeGen spec; run `xcodegen generate` to create .xcodeproj
+│   ├── Screenshots/FlickrDemoScreenshots.swift  ← UITest screenshot pipeline (5 tests; MOCK_PHOTOS seam)
 │   └── .gitignore                    ← ignores the generated .xcodeproj
 ├── Tests/AWFlickrServicesTests/
 │   └── AWFlickrServicesTests.swift   ← 55 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
+├── screenshots/
+│   ├── ios/                          ← 6 PNG screenshots (empty, signed_in, search_results, photo_detail, and authenticated variants)
+│   └── macos/                        ← 3 PNG screenshots (empty_state, search_results, photo_detail)
+├── scripts/
+│   ├── ios_screenshots.sh            ← Runs FlickrDemoScreenshots UITests; extracts PNGs to screenshots/ios/
+│   ├── macos_screenshots.sh          ← Launches macOS app 3 times (empty, mock photos, mock detail); captures windows
+│   ├── extract_screenshots.py        ← Extracts XCTAttachment PNGs from .xcresult bundles
+│   └── capture_macos_window.py       ← Quartz bounds + screencapture -R; no accessibility permissions needed
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets
 ├── README.md
 ├── AGENTS.md
@@ -231,7 +240,7 @@ Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone)
 ## Commit history (latest 8)
 
 ```
-fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
+1222dc8  feat(screenshots): automated screenshot pipeline for iOS and macOS
 fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
 97643d9  feat(examples): iOS demo app — cross-platform source files, NavigationStack/View #available, XcodeGen project
 40fd275  feat(examples): add OAuth flow, fave/unfave/comment to demo — full API coverage
