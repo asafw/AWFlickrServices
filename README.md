@@ -400,6 +400,24 @@ comment(
 
 A demo app under `Examples/` demonstrates all seven `FlickrPhotosProtocol` methods plus the full OAuth flow. The same SwiftUI source files run on both macOS and iOS.
 
+### Screenshots
+
+#### iOS
+
+| Empty state | Signed in | Search results |
+|:-----------:|:---------:|:--------------:|
+| ![iOS empty state](screenshots/ios/ios_empty_state.png) | ![iOS signed in](screenshots/ios/ios_signed_in.png) | ![iOS search results](screenshots/ios/ios_search_results.png) |
+
+| Photo detail | Authenticated search | Authenticated detail |
+|:------------:|:--------------------:|:--------------------:|
+| ![iOS photo detail](screenshots/ios/ios_photo_detail.png) | ![iOS authenticated search](screenshots/ios/ios_search_results_signed_in.png) | ![iOS authenticated detail](screenshots/ios/ios_photo_detail_authenticated.png) |
+
+#### macOS
+
+| Empty state | Search results | Photo detail |
+|:-----------:|:--------------:|:------------:|
+| ![macOS empty state](screenshots/macos/macos_empty_state.png) | ![macOS search results](screenshots/macos/macos_search_results.png) | ![macOS photo detail](screenshots/macos/macos_photo_detail.png) |
+
 ### Running on macOS
 
 ```bash
@@ -669,6 +687,24 @@ comment(
 A demo app included under `Examples/` demonstrates `FlickrPhotosProtocol` — searching
 for photos, lazy-loading thumbnails, and fetching photo info and comments — without
 writing any UIKit or AppKit code. The same SwiftUI source files run on both macOS and iOS.
+
+### Screenshots
+
+#### iOS
+
+| Empty state | Signed in | Search results |
+|:-----------:|:---------:|:--------------:|
+| ![iOS empty state](screenshots/ios/ios_empty_state.png) | ![iOS signed in](screenshots/ios/ios_signed_in.png) | ![iOS search results](screenshots/ios/ios_search_results.png) |
+
+| Photo detail | Authenticated search | Authenticated detail |
+|:------------:|:--------------------:|:--------------------:|
+| ![iOS photo detail](screenshots/ios/ios_photo_detail.png) | ![iOS authenticated search](screenshots/ios/ios_search_results_signed_in.png) | ![iOS authenticated detail](screenshots/ios/ios_photo_detail_authenticated.png) |
+
+#### macOS
+
+| Empty state | Search results | Photo detail |
+|:-----------:|:--------------:|:------------:|
+| ![macOS empty state](screenshots/macos/macos_empty_state.png) | ![macOS search results](screenshots/macos/macos_search_results.png) | ![macOS photo detail](screenshots/macos/macos_photo_detail.png) |
 
 ### Requirements
 

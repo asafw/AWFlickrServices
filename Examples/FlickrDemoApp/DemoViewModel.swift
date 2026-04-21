@@ -33,6 +33,68 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
     @Published var photos: [FlickrPhoto] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
+    /// Set by MOCK_DETAIL seam — ContentView presents a detail sheet for the first photo.
+    @Published var showScreenshotDetail: Bool = false
+
+    // MARK: - Init
+
+    init() {
+        #if DEBUG
+        let env = ProcessInfo.processInfo.environment
+        let args = ProcessInfo.processInfo.arguments
+
+        // UITest / screenshot seam: pass -mockAuth in launchArguments to pre-seed
+        // a fake OAuth token so photo detail shows fave/comment controls.
+        if args.contains("-mockAuth") {
+            oauthToken       = "mock_token_for_screenshot"
+            oauthTokenSecret = "mock_secret_for_screenshot"
+            signedInAs       = "screenshot_user"
+        }
+
+        // Auto-search seam: set AUTO_SEARCH env var to a search term and the
+        // app will populate searchText and trigger search after a short delay.
+        // Used by screenshot UITests to avoid keyboard/button interaction issues.
+        if let term = env["AUTO_SEARCH"], !term.isEmpty {
+            searchText = term
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+                self?.search()
+            }
+        }
+
+        // MOCK_PHOTOS seam: bypasses network entirely for screenshot tests.
+        // Set MOCK_PHOTOS to any non-empty value to immediately populate photos
+        // with real Flickr cat photo data (captured 2026-04).
+        // MOCK_DETAIL seam: makes ContentView immediately present the detail sheet
+        // for the first mock photo. Requires MOCK_PHOTOS to also be set.
+        if env["MOCK_DETAIL"] != nil {
+            showScreenshotDetail = true
+        }
+
+        if env["MOCK_PHOTOS"] != nil {
+            searchText = "cat"
+            let json = """
+            [
+              {"id":"55222618564","owner":"30052849@N07","secret":"716c1df7a1","server":"65535","farm":66,"title":"cat"},
+              {"id":"55222591949","owner":"79923106@N02","secret":"bd26ff9016","server":"65535","farm":66,"title":"Street Cat"},
+              {"id":"55222749215","owner":"79923106@N02","secret":"e867044cf4","server":"65535","farm":66,"title":"Street Cat"},
+              {"id":"55222566619","owner":"48695801@N03","secret":"7fd2eca734","server":"65535","farm":66,"title":"Even big cats need to sleep."},
+              {"id":"55222467178","owner":"87805257@N00","secret":"c55285bd69","server":"65535","farm":66,"title":"Papageno"},
+              {"id":"55222300021","owner":"13441928@N04","secret":"94ec211701","server":"65535","farm":66,"title":"Lucy and John's cat"},
+              {"id":"55221396282","owner":"201292385@N07","secret":"a8a8bc4ca0","server":"65535","farm":66,"title":"Redwing on Cat Tail"},
+              {"id":"55222462643","owner":"201292385@N07","secret":"42c44117b7","server":"65535","farm":66,"title":"Redwing Talking"},
+              {"id":"55222463073","owner":"201292385@N07","secret":"1daebab9cb","server":"65535","farm":66,"title":"Yellowhead Male"},
+              {"id":"55222469308","owner":"201292385@N07","secret":"838e578fd9","server":"65535","farm":66,"title":"Redwing on Cat Tail 2"},
+              {"id":"55222554474","owner":"201292385@N07","secret":"89a4cea6b5","server":"65535","farm":66,"title":"Yellowhead Eating"},
+              {"id":"55222715780","owner":"201292385@N07","secret":"a3f9bc35e1","server":"65535","farm":66,"title":"Female Redwing on Cat Tail"}
+            ]
+            """
+            if let data = json.data(using: .utf8),
+               let decoded = try? JSONDecoder().decode([FlickrPhoto].self, from: data) {
+                photos = decoded
+            }
+        }
+        #endif
+    }
 
     // MARK: - Search
 

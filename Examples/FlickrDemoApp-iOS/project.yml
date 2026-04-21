@@ -30,3 +30,17 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         TARGETED_DEVICE_FAMILY: "1"
+
+  FlickrDemoScreenshots:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Screenshots
+    settings:
+      base:
+        SWIFT_VERSION: 5.9
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.flickrdemo.screenshots
+        TEST_TARGET_NAME: FlickrDemoApp-iOS
+    dependencies:
+      - target: FlickrDemoApp-iOS

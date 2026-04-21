@@ -9,10 +9,19 @@ struct ContentView: View {
     var body: some View {
         // NavigationStack (macOS 13+/iOS 16+) enables NavigationLink in PhotoGridView.
         // Fall back to NavigationView on macOS 12.
-        if #available(macOS 13.0, *) {
-            NavigationStack { navigationContent }
-        } else {
-            NavigationView { navigationContent }
+        Group {
+            if #available(macOS 13.0, *) {
+                NavigationStack { navigationContent }
+            } else {
+                NavigationView { navigationContent }
+            }
+        }
+        // MOCK_DETAIL seam: presents the first photo's detail view as a sheet
+        // so script-driven macOS screenshots can capture it without accessibility.
+        .sheet(isPresented: $viewModel.showScreenshotDetail) {
+            if let photo = viewModel.photos.first {
+                PhotoDetailView(photo: photo, viewModel: viewModel)
+            }
         }
     }
 
@@ -56,9 +65,11 @@ struct ContentView: View {
         HStack {
             TextField("Search Flickr…", text: $viewModel.searchText)
                 .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("search_field")
                 .onSubmit { viewModel.search() }
 
             Button("Search") { viewModel.search() }
+                .accessibilityIdentifier("search_button")
                 .disabled(viewModel.searchText.isEmpty || viewModel.isLoading)
         }
         .padding()
