@@ -22,33 +22,37 @@ methods directly.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
 - **v1.0.0:** `master` branch — original 2020 code, frozen
-- **v2.0.0 (WIP):** `v2` branch — modernised, tested, iOS 16+
+- **v2.0.0 (WIP):** `v2` branch — modernised, tested, iOS 16+ and macOS 12+
 
 ---
-
-| v2 changes vs v1 — audit fixes applied (v2.1)
 
 | Area | v1 | v2 |
 |---|---|---|
 | `swift-tools-version` | 5.2 | 5.9 |
 | iOS minimum | 13 | 16 |
+| macOS support | none | 12+ (Monterey) |
+| `UIKit` dependency | yes | removed — `getImage` → `downloadImageData` returning `Data` |
 | `FlickrEndpoints` | `struct` with `let` | caseless `enum` with `static let` |
 | NS legacy types | `NSDate`, `NSUUID`, `NSCharacterSet`, `NSURLComponents` | pure Swift types |
 | OAuth typo | `encriptedURLWithBaseURL` | `encryptedURLWithBaseURL` |
 | Dead code | `generatePermsURL` + `permsEndpoint` + `getFavoritesEndPoint` | removed |
 | `URLSession` | hardcoded `.shared` | injected via `FlickrAPIRepository.init(session:)` |
 | HTTP validation | none | `validateHTTPResponse` checks 200–299 |
-| `getImage` caching | unreliable (bare URL dataTask) | `URLRequest(cachePolicy: .returnCacheDataElseLoad)` |
+| Image download caching | unreliable | `URLRequest(cachePolicy: .returnCacheDataElseLoad)` |
 | `Comment._content` | leading-underscore property | `CodingKeys` mapping, property is `content` |
 | `FlickrPhotosRequest.page`/`per_page` | `String` | `Int` (breaking change) |
 | `Sendable` | — | all public structs conform |
-| `FlickrAPIError` | `Error` | `Error, Equatable` |
+| `FlickrAPIError` | `Error` | `Error, Equatable`; dead cases (`downloadImageError`, `missingDataError`) removed |
 | `FlickrCommentsRequest.photo_id` | internal | `public` |
 | nil-URL silent returns in OAuth | silent | calls `completion(.failure(.parsingError))` |
+| `FlickrOAuthProtocol` context param | `UIViewController` | `ASWebAuthenticationPresentationContextProviding` |
 | `FlickrOAuthProtocol` repository | inline `FlickrAPIRepository()` per call | `private var repository` computed property |
+| `ASWebAuthenticationSession` retention | local var (deallocated before callback) | retained via `objc_setAssociatedObject` on context |
+| Redundant `getAccessToken` wrapper | present | removed (inlined to `repository.getAccessToken`) |
+| OAuth param sort | `localizedCaseInsensitiveCompare` (locale-sensitive) | `sorted()` (lexicographic, per spec) |
 | Test tearDown | missing | resets `CapturingURLProtocol` shared state |
 | Linux test artifacts | present | removed |
-| Unit tests | placeholder only | 13 tests across 5 suites |
+| Unit tests | placeholder only | 17 tests across 5 suites |
 | CI | none | GitHub Actions `ios.yml` |
 
 ---
@@ -95,7 +99,7 @@ AWFlickrServices/
 | Method | Auth required | Returns |
 |---|---|---|
 | `getPhotos(apiKey:photosRequest:completion:)` | No | `[FlickrPhoto]` |
-| `getImage(from:completion:)` | No | `UIImage` (`returnCacheDataElseLoad`) |
+| `downloadImageData(from:completion:)` | No | `Data` (`returnCacheDataElseLoad`) |
 | `getInfo(apiKey:infoRequest:completion:)` | No | `FlickrInfoResponse` |
 | `getComments(apiKey:commentsRequest:completion:)` | No | `[String]` (comment bodies) |
 | `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:completion:)` | Yes (OAuth) | `Void` |
@@ -120,10 +124,8 @@ AWFlickrServices/
 
 ## Architecture invariants
 
-- **Protocol mixin pattern** — `FlickrOAuthProtocol` and `FlickrPhotosProtocol` provide
-  default implementations via `extension`. Consumers just conform and call.
+- **No UIKit dependency** — iOS 16+ and macOS 12+. `FlickrPhotosProtocol.downloadImageData` returns `Data`; callers convert to `UIImage`/`NSImage`.
 - **Zero external dependencies** — `Package.swift` has no remote package dependencies.
-- **UIKit dependency** — iOS-only. Do not make cross-platform without significant refactoring.
 - **Completion-handler API** — all async operations use `@escaping (Result<T, Error>) -> Void`.
   Callbacks fire on the URLSession background queue. Callers must dispatch to main for UI.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `apiSecret&oauthTokenSecret`
@@ -131,6 +133,8 @@ AWFlickrServices/
 - **HTTP validation** — all `dataTask` completions check `200..<300`; non-2xx → `.networkError`.
 - **`FlickrAPIRepository` is injected** — `init(session:)` defaults to `.shared`; 
   pass a stubbed session for unit testing.
+- **`ASWebAuthenticationSession` retained** — stored via `objc_setAssociatedObject` on the context
+  object for the duration of the OAuth flow.
 
 ---
 
@@ -164,8 +168,9 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 
 ```
 (v2 branch)
-1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests for getComments/fave/unfave/comment
-2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown, remove obsolete Linux test files, README v2
+81d421b   feat: S1-S5 audit fixes + cross-platform refactor (iOS + macOS)
+1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests
+2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown
 93d5920   feat(v2): Phase 1+2 modernisation — NS types, FlickrEndpoints enum, URLSession injection, HTTP validation, page/per_page Int, Sendable, 13 unit tests, CI workflow
 2977c1d   docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
 442d7cb   Updated total JSON field from String to Int
