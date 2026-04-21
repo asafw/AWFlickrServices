@@ -1,7 +1,9 @@
 // DemoViewModel.swift — Observable state connecting the UI to AWFlickrServices.
 
+import CoreGraphics
 import Foundation
 import Combine
+import ImageIO
 import AWFlickrServices
 
 /// Drives the demo UI. Conforms to FlickrPhotosProtocol and FlickrOAuthProtocol
@@ -174,3 +176,29 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
         signedInAs = nil
     }
 }
+
+#if DEBUG
+extension DemoViewModel {
+    /// Returns PNG Data for a solid gray image at the given pixel side length.
+    /// Used by screenshot tests to fill photo view areas without any network call.
+    static func screenshotPlaceholderData(side: Int = 300) -> Data? {
+        let space = CGColorSpaceCreateDeviceGray()
+        guard let ctx = CGContext(
+            data: nil, width: side, height: side,
+            bitsPerComponent: 8, bytesPerRow: side,
+            space: space,
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return nil }
+        ctx.setFillColor(gray: 0.82, alpha: 1.0)
+        ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+        guard let cgImage = ctx.makeImage() else { return nil }
+        let mutableData = NSMutableData()
+        guard let dest = CGImageDestinationCreateWithData(
+            mutableData, "public.png" as CFString, 1, nil
+        ) else { return nil }
+        CGImageDestinationAddImage(dest, cgImage, nil)
+        guard CGImageDestinationFinalize(dest) else { return nil }
+        return mutableData as Data
+    }
+}
+#endif
