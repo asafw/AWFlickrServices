@@ -2,8 +2,8 @@
 
 ![CI](https://github.com/asafw/AWFlickrServices/actions/workflows/ios.yml/badge.svg)
 
-A dependency-free Swift Package for integrating the Flickr API in iOS applications.
-Uses a **protocol mixin pattern** — conform your `UIViewController` to `FlickrOAuthProtocol`
+A dependency-free Swift Package for integrating the Flickr API in iOS and macOS applications.
+Uses a **protocol mixin pattern** — conform any Swift type to `FlickrOAuthProtocol`
 or `FlickrPhotosProtocol` and get full API access through protocol extension default
 implementations. No subclassing or dependency injection required.
 
@@ -15,13 +15,13 @@ implementations. No subclassing or dependency injection required.
 
 * Xcode 16+
 * Swift 5.9
-* iOS 16+
+* iOS 16+ **or** macOS 12+
 * API Key and Secret obtained from Flickr
 
 ## Package capabilities
 
 * OAuth 1.0a flow — Request Token, Authorization, Access Token
-* Methods not requiring OAuth — `getPhotos`, `getImage`, `getInfo`, `getComments`
+* Methods not requiring OAuth — `getPhotos`, `downloadImageData`, `getInfo`, `getComments`
 * Methods requiring OAuth — `fave`, `unfave`, `comment`
 
 All public model types conform to `Sendable`.
@@ -33,6 +33,31 @@ All public model types conform to `Sendable`.
 | `FlickrPhotosRequest(text:page:per_page:)` — `page`/`per_page` are `String` | `page`/`per_page` are `Int` |
 | `Comment._content` | `Comment.content` |
 | iOS 13+ | iOS 16+ |
+
+## Installation
+
+### Swift Package Manager
+
+In Xcode: **File → Add Package Dependencies**, paste the repository URL, and select the `v2` branch (or the `2.0.0` tag when released).
+
+In `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/asafw/AWFlickrServices", branch: "v2")
+],
+targets: [
+    .target(
+        name: "YourTarget",
+        dependencies: ["AWFlickrServices"]
+    )
+]
+```
+
+> For a complete integration walkthrough, model type reference, error handling patterns,
+> and thread-safety notes, see **[docs/INTEGRATION.md](docs/INTEGRATION.md)**.
+
+---
 
 ## Usage
 
@@ -48,8 +73,9 @@ oauthTokenSecret // OAuth access token secret obtained in the OAuth flow
 
 ### FlickrOAuthProtocol
 
-Conform a `UIViewController` to both `FlickrOAuthProtocol` and
-`ASWebAuthenticationPresentationContextProviding`, then implement the context provider:
+Conform any class to `FlickrOAuthProtocol`. To trigger the OAuth web sheet you
+also need an `ASWebAuthenticationPresentationContextProviding` — on iOS a
+`UIViewController` is the most convenient host:
 
 ```swift
 import AWFlickrServices
@@ -58,7 +84,7 @@ import AuthenticationServices
 class ViewController: UIViewController, FlickrOAuthProtocol, ASWebAuthenticationPresentationContextProviding {
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return view.window ?? ASPresentationAnchor()
+        view.window ?? ASPresentationAnchor()
     }
 }
 ```
@@ -83,7 +109,7 @@ performOAuthFlow(
 
 ### FlickrPhotosProtocol
 
-Conform a `UIViewController` to `FlickrPhotosProtocol`:
+Conform any Swift type (class, struct, actor) to `FlickrPhotosProtocol`:
 
 ```swift
 import AWFlickrServices
@@ -107,15 +133,20 @@ getPhotos(apiKey: apiKey, photosRequest: photosRequest) { response in
 }
 ```
 
-**Get image** (no OAuth required — uses built-in HTTP cache)
+**Download image data** (no OAuth required — uses built-in HTTP cache)
 
 ```swift
-getImage(from: imageURL) { response in
-    switch response {
-    case .success(let image):
-        // handle UIImage
-    case .failure(let error):
-        // handle error
+if let url = URL(string: photo.largePhotoURLString()) {
+    downloadImageData(from: url) { response in
+        switch response {
+        case .success(let data):
+            // data is the raw bytes — convert to UIImage / NSImage as needed
+            DispatchQueue.main.async {
+                self.imageView.image = UIImage(data: data)
+            }
+        case .failure(let error):
+            // handle error
+        }
     }
 }
 ```
