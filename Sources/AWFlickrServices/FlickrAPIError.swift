@@ -8,6 +8,4 @@
 public enum FlickrAPIError: Error, Equatable {
     case parsingError
     case networkError
-    case downloadImageError
-    case missingDataError
 }

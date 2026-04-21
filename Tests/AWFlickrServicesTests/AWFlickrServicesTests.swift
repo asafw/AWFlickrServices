@@ -179,18 +179,18 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         XCTAssertTrue(url.contains("mountains"), "URL should contain search text")
     }
 
-    func testGetImageUsesReturnCacheDataElseLoad() {
+    func testDownloadImageDataUsesReturnCacheDataElseLoad() {
         let expectation = expectation(description: "image request sent")
-        CapturingURLProtocol.stubbedData = UIImage(systemName: "star")!.pngData() ?? Data()
+        CapturingURLProtocol.stubbedData = Data([0xFF, 0xD8, 0xFF]) // minimal stub bytes
 
         let url = URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
-        repository.getImage(from: url) { _ in expectation.fulfill() }
+        repository.downloadImageData(from: url) { _ in expectation.fulfill() }
 
         wait(for: [expectation], timeout: 2)
         XCTAssertEqual(
             CapturingURLProtocol.lastRequest?.cachePolicy,
             .returnCacheDataElseLoad,
-            "getImage should use returnCacheDataElseLoad cache policy"
+            "downloadImageData should use returnCacheDataElseLoad cache policy"
         )
     }
 

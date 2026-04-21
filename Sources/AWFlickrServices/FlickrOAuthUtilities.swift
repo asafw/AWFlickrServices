@@ -151,7 +151,7 @@ private func getParameters(
 }
 
 private func sortedURLString(url: String, parameters: [String: String], urlEscape: Bool) -> String {
-    let keys = parameters.keys.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+    let keys = parameters.keys.sorted()
     let pairs = keys.compactMap { key -> String? in
         guard let value = parameters[key] else { return nil }
         return "\(key)=\(oauthEncodedString(string: value))"

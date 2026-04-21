@@ -5,12 +5,14 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-import UIKit
+import ObjectiveC
 import AuthenticationServices
+
+private var _webAuthSessionKey = "AWFlickrServices.webAuthSession"
 
 public protocol FlickrOAuthProtocol {
     func performOAuthFlow(
-        from viewController: UIViewController,
+        from context: ASWebAuthenticationPresentationContextProviding,
         apiKey: String,
         apiSecret: String,
         callbackUrlString: String,
@@ -23,7 +25,7 @@ extension FlickrOAuthProtocol {
     private var repository: FlickrAPIRepository { FlickrAPIRepository() }
 
     public func performOAuthFlow(
-        from viewController: UIViewController,
+        from context: ASWebAuthenticationPresentationContextProviding,
         apiKey: String,
         apiSecret: String,
         callbackUrlString: String,
@@ -44,7 +46,7 @@ extension FlickrOAuthProtocol {
                     return
                 }
                 self.presentAuth(
-                    viewController: viewController,
+                    context: context,
                     apiKey: apiKey,
                     apiSecret: apiSecret,
                     oauthTokenSecret: requestTokenResponse.oauth_token_secret,
@@ -59,7 +61,7 @@ extension FlickrOAuthProtocol {
     }
 
     private func presentAuth(
-        viewController: UIViewController,
+        context: ASWebAuthenticationPresentationContextProviding,
         apiKey: String,
         apiSecret: String,
         oauthTokenSecret: String,
@@ -83,7 +85,7 @@ extension FlickrOAuthProtocol {
                 completion(.failure(FlickrAPIError.parsingError))
                 return
             }
-            self.getAccessToken(
+            self.repository.getAccessToken(
                 apiKey: apiKey,
                 apiSecret: apiSecret,
                 oauthToken: oauthToken,
@@ -92,28 +94,11 @@ extension FlickrOAuthProtocol {
                 completion: completion
             )
         }
-        webAuthSession.presentationContextProvider = viewController as? ASWebAuthenticationPresentationContextProviding
+        webAuthSession.presentationContextProvider = context
+        objc_setAssociatedObject(context as AnyObject, &_webAuthSessionKey, webAuthSession, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         DispatchQueue.main.async {
             webAuthSession.start()
         }
-    }
-
-    private func getAccessToken(
-        apiKey: String,
-        apiSecret: String,
-        oauthToken: String,
-        oauthTokenSecret: String,
-        oauthVerifier: String,
-        completion: @escaping (Result<AccessTokenResponse, Error>) -> Void
-    ) {
-        repository.getAccessToken(
-            apiKey: apiKey,
-            apiSecret: apiSecret,
-            oauthToken: oauthToken,
-            oauthTokenSecret: oauthTokenSecret,
-            oauthVerifier: oauthVerifier,
-            completion: completion
-        )
     }
 }
 

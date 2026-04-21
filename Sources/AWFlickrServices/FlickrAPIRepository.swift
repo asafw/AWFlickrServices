@@ -5,7 +5,7 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-import UIKit
+import Foundation
 
 struct FlickrAPIRepository {
 
@@ -48,7 +48,7 @@ struct FlickrAPIRepository {
         }.resume()
     }
 
-    func getImage(from url: URL, completion: @escaping (Result<UIImage, Error>) -> Void) {
+    func downloadImageData(from url: URL, completion: @escaping (Result<Data, Error>) -> Void) {
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
         session.dataTask(with: request) { data, response, error in
             if let error { completion(.failure(error)); return }
@@ -56,11 +56,7 @@ struct FlickrAPIRepository {
                 completion(.failure(FlickrAPIError.networkError))
                 return
             }
-            guard let image = UIImage(data: data) else {
-                completion(.failure(FlickrAPIError.downloadImageError))
-                return
-            }
-            completion(.success(image))
+            completion(.success(data))
         }.resume()
     }
 

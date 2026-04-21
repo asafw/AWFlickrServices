@@ -5,7 +5,7 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-import UIKit
+import Foundation
 
 public protocol FlickrPhotosProtocol {
     func getPhotos(
@@ -14,9 +14,9 @@ public protocol FlickrPhotosProtocol {
         completion: @escaping (Result<[FlickrPhoto], Error>) -> Void
     )
 
-    func getImage(
+    func downloadImageData(
         from url: URL,
-        completion: @escaping (Result<UIImage, Error>) -> Void
+        completion: @escaping (Result<Data, Error>) -> Void
     )
 
     func fave(
@@ -72,11 +72,11 @@ extension FlickrPhotosProtocol {
         repository.getPhotos(apiKey: apiKey, photosRequest: photosRequest, completion: completion)
     }
 
-    public func getImage(
+    public func downloadImageData(
         from url: URL,
-        completion: @escaping (Result<UIImage, Error>) -> Void
+        completion: @escaping (Result<Data, Error>) -> Void
     ) {
-        repository.getImage(from: url, completion: completion)
+        repository.downloadImageData(from: url, completion: completion)
     }
 
     public func fave(
