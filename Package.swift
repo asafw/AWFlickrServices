@@ -31,5 +31,9 @@ let package = Package(
         .testTarget(
             name: "AWFlickrServicesIntegrationTests",
             dependencies: ["AWFlickrServices"]),
+        .executableTarget(
+            name: "FlickrDemoApp",
+            dependencies: ["AWFlickrServices"],
+            path: "Examples/FlickrDemoApp"),
     ]
 )

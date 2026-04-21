@@ -1,0 +1,65 @@
+// PhotoGridView.swift — Scrollable grid of photo thumbnails.
+
+import SwiftUI
+import AWFlickrServices
+
+struct PhotoGridView: View {
+
+    let photos: [FlickrPhoto]
+    let apiKey: String
+
+    private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160))]
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(photos, id: \.id) { photo in
+                    NavigationLink {
+                        PhotoDetailView(photo: photo, apiKey: apiKey)
+                    } label: {
+                        ThumbnailView(urlString: photo.thumbnailPhotoURLString())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding()
+        }
+    }
+}
+
+// MARK: - Thumbnail cell
+
+private struct ThumbnailView: View {
+
+    let urlString: String
+    @State private var imageData: Data? = nil
+
+    // FlickrPhotosProtocol conformance via extension on any type — we use a
+    // lightweight struct here to demonstrate the mixin pattern directly.
+    private struct Loader: FlickrPhotosProtocol { }
+    private let loader = Loader()
+
+    var body: some View {
+        Group {
+            if let data = imageData, let nsImage = NSImage(data: data) {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .foregroundStyle(.quaternary)
+                    .overlay { ProgressView() }
+            }
+        }
+        .frame(width: 120, height: 120)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .task(id: urlString) {
+            guard let url = URL(string: urlString) else { return }
+            loader.downloadImageData(from: url) { result in
+                if case .success(let data) = result {
+                    DispatchQueue.main.async { imageData = data }
+                }
+            }
+        }
+    }
+}
