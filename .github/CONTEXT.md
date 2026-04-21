@@ -130,7 +130,7 @@ AWFlickrServices/
 
 ---
 
-## Tests (18 passing)
+## Tests (34 passing)
 
 | Suite | Tests |
 |---|---|
@@ -138,7 +138,9 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 |
 | `FlickrPhotosRequestTests` | 1 |
 | `FlickrModelsDecodingTests` | 4 |
-| `FlickrAPIRepositoryURLBuildingTests` | 9 |
+| `FlickrAPIRepositoryURLBuildingTests` | 14 |
+| `FlickrAPIRepositoryOAuthParsingTests` | 4 |
+| `RFC3986EncodingTests` | 7 |
 
 Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
 
@@ -160,6 +162,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 
 ```
 (v2 branch)
+a55838f   test: coverage improvements — decoded results, OAuth parsing, oauth_signature, RFC 3986 edge cases (34 tests)
 f5d139a   fix: S6-S8 OAuth encoding — RFC 3986 percent-encoding, alphanumeric nonce, merge encode helpers
 81d421b   feat: S1-S5 audit fixes + cross-platform refactor (iOS + macOS)
 1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests

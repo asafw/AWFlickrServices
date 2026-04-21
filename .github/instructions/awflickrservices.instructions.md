@@ -37,7 +37,7 @@ AWFlickrServices/
 │   ├── FlickrOAuthUtilities.swift    ← Internal HMAC-SHA1 signing utilities (Foundation + CommonCrypto)
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 18 unit tests (5 suites, URLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 34 unit tests (7 suites, URLProtocol stub)
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+
 ├── README.md
 └── AGENTS.md
