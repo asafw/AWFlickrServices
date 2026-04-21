@@ -71,11 +71,17 @@ AWFlickrServices/
 │   ├── FlickrOAuthProtocol.swift     ← Public OAuth protocol + default impl
 │   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString internal
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
+├── Examples/FlickrDemoApp/           ← SPM executableTarget; `swift run FlickrDemoApp`
+│   ├── FlickrDemoApp.swift           ← @main SwiftUI App entry point (macOS 12+)
+│   ├── DemoViewModel.swift           ← ObservableObject; conforms to FlickrPhotosProtocol
+│   ├── ContentView.swift             ← Search bar + result area root view
+│   ├── PhotoGridView.swift           ← LazyVGrid of thumbnails; demonstrates downloadImageData + mixin
+│   └── PhotoDetailView.swift         ← Large photo + getInfo + getComments side panel
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 46 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 51 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
-├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 3 targets
+├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets
 ├── README.md
 ├── AGENTS.md
 └── .github/
@@ -186,6 +192,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:
 ## Commit history (latest 8)
 
 ```
+cf5ab69  feat(examples): add FlickrDemoApp SPM target — SwiftUI macOS demo of search, thumbnails, photo detail, getInfo, getComments
 b4d6ff3  test: audit — stat:fail coverage for getInfo/getComments/unfave/comment, A9 regression for getRequestToken
 e211f49  docs(context): remove stale duplicate section, add missing docs-sync commit to history
 552deb7  docs(context): sync after A9/A13/A14 fixes — 46 unit tests
