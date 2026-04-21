@@ -71,8 +71,8 @@ AWFlickrServices/
 │   ├── FlickrOAuthProtocol.swift     ← Public OAuth protocol + default impl
 │   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString internal
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
-├── Examples/FlickrDemoApp/           ← SPM executableTarget; `swift run FlickrDemoApp`
-│   ├── FlickrDemoApp.swift           ← @main SwiftUI App entry point (macOS 12+)
+├── Examples/FlickrDemoApp/           ← SPM executableTarget; macOS 12+ SwiftUI demo
+│   ├── FlickrDemoApp.swift           ← @main SwiftUI App; calls NSApp.activate on appear (swift run focus fix)
 │   ├── DemoViewModel.swift           ← ObservableObject; conforms to FlickrPhotosProtocol
 │   ├── ContentView.swift             ← Search bar + result area root view
 │   ├── PhotoGridView.swift           ← LazyVGrid of thumbnails; demonstrates downloadImageData + mixin
@@ -187,11 +187,28 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:
 
 > `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
 
+## Demo app
+
+```bash
+cd ~/Desktop/asafw/AWFlickrServices
+
+# Option 1 — env var (no files left on disk)
+FLICKR_API_KEY=your_api_key swift run FlickrDemoApp
+
+# Option 2 — credential file
+echo "your_api_key" > /tmp/flickr_api_key
+swift run FlickrDemoApp
+```
+
+- Reads key from `FLICKR_API_KEY` env var first; falls back to `/tmp/flickr_api_key`.
+- `FlickrDemoApp.swift` calls `NSApp.setActivationPolicy(.regular)` + `NSApp.activate(ignoringOtherApps: true)` in `.onAppear` to work around the standard macOS behaviour where `swift run`-launched processes don't become the foreground app — the search field responds to keyboard input immediately.
+
 ---
 
 ## Commit history (latest 8)
 
 ```
+90a8cd1  fix(demo): activate app on appear so TextField responds to keyboard input
 cf5ab69  feat(examples): add FlickrDemoApp SPM target — SwiftUI macOS demo of search, thumbnails, photo detail, getInfo, getComments
 b4d6ff3  test: audit — stat:fail coverage for getInfo/getComments/unfave/comment, A9 regression for getRequestToken
 e211f49  docs(context): remove stale duplicate section, add missing docs-sync commit to history

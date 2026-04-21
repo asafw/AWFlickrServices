@@ -207,3 +207,33 @@ comment(
     }
 }
 ```
+
+## Demo App
+
+A runnable macOS demo app is included under `Examples/FlickrDemoApp/`. It demonstrates
+`FlickrPhotosProtocol` — searching for photos, lazy-loading thumbnails, and fetching
+photo info and comments — without writing any UIKit or AppKit code.
+
+### Requirements
+
+- macOS 12+
+- Xcode 16+ (or Swift 5.9 CLI tools)
+- A [Flickr API key](https://www.flickr.com/services/api/misc.api_keys.html)
+
+### Running the demo
+
+```bash
+# Option 1 – environment variable (no files left on disk)
+FLICKR_API_KEY=your_api_key swift run FlickrDemoApp
+
+# Option 2 – credential file (persists across runs)
+echo "your_api_key" > /tmp/flickr_api_key
+swift run FlickrDemoApp
+```
+
+Run both commands from the package root (`AWFlickrServices/` directory).
+The window will appear automatically and the search field will be focused.
+
+> **Note:** `swift run` does not give the process foreground focus by default on macOS.
+> The demo handles this automatically via `NSApp.activate(ignoringOtherApps: true)`,
+> so the search field responds to keyboard input immediately without needing to click first.
