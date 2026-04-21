@@ -255,6 +255,86 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
             "stat:fail from fave must surface as .apiError, not .success")
     }
 
+    func testUnfaveStatFailReturnsAPIError() {
+        let expectation = expectation(description: "unfave stat:fail")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":2,"message":"Photo is not in faves"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.unfave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "123")
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 2, message: "Photo is not in faves"),
+            "stat:fail from unfave must surface as .apiError, not .success")
+    }
+
+    func testCommentStatFailReturnsAPIError() {
+        let expectation = expectation(description: "comment stat:fail")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":1,"message":"Photo not found"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.comment(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice")
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 1, message: "Photo not found"),
+            "stat:fail from comment must surface as .apiError, not .success")
+    }
+
+    func testGetInfoStatFailReturnsAPIError() {
+        let expectation = expectation(description: "getInfo stat:fail")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.getInfo(
+            apiKey: "BADKEY",
+            infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+    }
+
+    func testGetCommentsStatFailReturnsAPIError() {
+        let expectation = expectation(description: "getComments stat:fail")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.getComments(
+            apiKey: "BADKEY",
+            commentsRequest: FlickrCommentsRequest(photo_id: "999")
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+    }
+
     func testGetInfoRequestContainsInfoMethod() {
         let expectation = expectation(description: "request sent")
         CapturingURLProtocol.stubbedData = Data("""
@@ -560,6 +640,27 @@ final class FlickrAPIRepositoryOAuthParsingTests: XCTestCase {
         XCTAssertEqual(decoded?.oauth_token_secret, "SEC==",
             "oauth_token_secret with '=' padding must be parsed correctly")
         XCTAssertEqual(decoded?.oauth_token, "TOK")
+    }
+
+    /// A9 regression (request-token side): token secret with `=` padding must not be truncated.
+    func testRequestTokenSecretWithEqualsSignIsParsed() {
+        let expectation = expectation(description: "request token with = parsed")
+        let responseBody = "oauth_callback_confirmed=true&oauth_token=REQ_TOK&oauth_token_secret=RSEC=="
+        CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
+
+        var decoded: RequestTokenResponse?
+        repository.getRequestToken(
+            apiKey: "KEY", apiSecret: "SECRET",
+            callbackUrlString: "myapp://oauth"
+        ) { result in
+            if case .success(let token) = result { decoded = token }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(decoded?.oauth_token_secret, "RSEC==",
+            "request token secret with '=' padding must be preserved (split on first = only)")
+        XCTAssertEqual(decoded?.oauth_token, "REQ_TOK")
     }
 }
 
