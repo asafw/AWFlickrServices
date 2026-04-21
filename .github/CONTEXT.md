@@ -164,7 +164,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 
 ```
 (v2 branch)
-TBD       fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown, remove obsolete Linux test files, README v2
+2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown, remove obsolete Linux test files, README v2
 93d5920   feat(v2): Phase 1+2 modernisation — NS types, FlickrEndpoints enum, URLSession injection, HTTP validation, page/per_page Int, Sendable, 13 unit tests, CI workflow
 2977c1d   docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
 442d7cb   Updated total JSON field from String to Int
