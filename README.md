@@ -1,201 +1,209 @@
-# AWFlickrServices 
+# AWFlickrServices
 
-* Swift Package for integrating Flickr services in iOS applications.
+![CI](https://github.com/asafw/AWFlickrServices/actions/workflows/ios.yml/badge.svg)
 
-## Version 
+A dependency-free Swift Package for integrating the Flickr API in iOS applications.
+Uses a **protocol mixin pattern** — conform your `UIViewController` to `FlickrOAuthProtocol`
+or `FlickrPhotosProtocol` and get full API access through protocol extension default
+implementations. No subclassing or dependency injection required.
 
-* 1.0.0
+## Version
+
+* 2.0.0
 
 ## Prerequisites
 
-* Xcode 11.5  
-* Swift 5  
-* iOS 13
+* Xcode 16+
+* Swift 5.9
+* iOS 16+
 * API Key and Secret obtained from Flickr
 
-## Package methods
+## Package capabilities
 
-* OAuth1 flow - Request Token, Authorization, Access Token  
-* Methods not requiring OAuth1 authentication - Get photos, Get image, Get info, Get comments  
-* Methods requiring OAuth1 authentication (oauthToken and oauthSecret) - Fave, Unfave, Comment  
+* OAuth 1.0a flow — Request Token, Authorization, Access Token
+* Methods not requiring OAuth — `getPhotos`, `getImage`, `getInfo`, `getComments`
+* Methods requiring OAuth — `fave`, `unfave`, `comment`
+
+All public model types conform to `Sendable`.
+
+## Migrating from v1
+
+| v1 | v2 |
+|---|---|
+| `FlickrPhotosRequest(text:page:per_page:)` — `page`/`per_page` are `String` | `page`/`per_page` are `Int` |
+| `Comment._content` | `Comment.content` |
+| iOS 13+ | iOS 16+ |
 
 ## Usage
 
 ### Naming conventions for code examples
 
 ```swift
-apiKey //API Key obtained from Flickr
-apiSecret //API Secret obtained from Flickr
-callbackUrlString //Callback to your app, used in OAuth authorization step
-oauthToken //OAuth access token obtained in OAuth flow
-oauthTokenSecret //OAuth access token secret obtained in OAuth flow
+apiKey           // API Key obtained from Flickr
+apiSecret        // API Secret obtained from Flickr
+callbackUrlString // Callback to your app, used in the OAuth authorization step
+oauthToken       // OAuth access token obtained in the OAuth flow
+oauthTokenSecret // OAuth access token secret obtained in the OAuth flow
 ```
 
 ### FlickrOAuthProtocol
 
-* Implement OAuth1 flow in a UIViewController conforming to FlickrOAuthProtocol and ASWebAuthenticationPresentationContextProviding  
-* Implement ASWebAuthenticationPresentationContextProviding presentationAnchor method  
+Conform a `UIViewController` to both `FlickrOAuthProtocol` and
+`ASWebAuthenticationPresentationContextProviding`, then implement the context provider:
 
 ```swift
 import AWFlickrServices
 import AuthenticationServices
 
 class ViewController: UIViewController, FlickrOAuthProtocol, ASWebAuthenticationPresentationContextProviding {
-    // ViewController implementation
 
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        return self.view.window ?? ASPresentationAnchor()
+        return view.window ?? ASPresentationAnchor()
     }
 }
 ```
-* Call FlickrOAuthProtocol's performOAuthFlow method
+
+Call `performOAuthFlow` to run the full three-legged OAuth flow:
 
 ```swift
-performOAuthFlow(from: self, 
-                 apiKey: apiKey, 
-                 apiSecret: apiSecret, 
-                 callbackUrlString: callbackUrlString, 
-                 completion: { response in
-                    switch response {
-                    case .success(let accessTokenReponse):
-                        //retain oauth_token and oauth_token_secret from accessTokenReponse
-                    case .failure(let error):
-                        //handle error
-                    }
-})
+performOAuthFlow(
+    from: self,
+    apiKey: apiKey,
+    apiSecret: apiSecret,
+    callbackUrlString: callbackUrlString
+) { response in
+    switch response {
+    case .success(let accessTokenResponse):
+        // retain accessTokenResponse.oauth_token and .oauth_token_secret
+    case .failure(let error):
+        // handle error
+    }
+}
 ```
 
 ### FlickrPhotosProtocol
 
-* Use FlickrPhotosProtocol's methods in a UIViewController confrorming to FlickrPhotosProtocol
+Conform a `UIViewController` to `FlickrPhotosProtocol`:
 
 ```swift
 import AWFlickrServices
 
 class ViewController: UIViewController, FlickrPhotosProtocol {
-    // ViewController implementation
+    // all FlickrPhotosProtocol methods are available via default implementations
 }
 ```
 
-* Get photos (does not require OAuth1 authentication)
-
-```swift 
-let photosRequest = FlickrPhotosRequest(text: searchText, 
-                                        page: page, 
-                                        per_page: per_page)
-getPhotos(apiKey: apiKey, 
-          photosRequest: photosRequest, 
-          completion: { response in
-             switch response {
-             case .success(let photos):   
-                 //handle photos
-             case .failure(let error):
-                 //handle error
-             }
-})
-```
-
-* Get image (does not require OAuth1 authentication)  
-* This method is using the bulit-in http caching 
+**Get photos** (no OAuth required)
 
 ```swift
-getImage(from: imageURL, 
-         completion: { repsonse in
-            switch repsonse {
-            case .success(let image):
-                //handle image
-            case .failure(_):
-                //handle error
-            }
-})
+let photosRequest = FlickrPhotosRequest(text: searchText, page: 1, per_page: 20)
+getPhotos(apiKey: apiKey, photosRequest: photosRequest) { response in
+    switch response {
+    case .success(let photos):
+        // handle [FlickrPhoto]
+    case .failure(let error):
+        // handle error
+    }
+}
 ```
 
-* Get info (does not require OAuth1 authentication)
-    
+**Get image** (no OAuth required — uses built-in HTTP cache)
+
 ```swift
-let infoRequest = FlickrInfoRequest(photo_id: photoId, 
-                                    secret: photoSecret)
-getInfo(apiKey: apiKey, 
-        infoRequest: infoRequest, 
-        completion: { response in
-           switch response {
-           case .success(let infoResponse):
-               //handle infoResponse
-           case .failure(let error):
-               //handle error
-           }
-})
+getImage(from: imageURL) { response in
+    switch response {
+    case .success(let image):
+        // handle UIImage
+    case .failure(let error):
+        // handle error
+    }
+}
 ```
 
-* Get comments (does not require OAuth1 authentication)
+**Get info** (no OAuth required)
+
+```swift
+let infoRequest = FlickrInfoRequest(photo_id: photoId, secret: photoSecret)
+getInfo(apiKey: apiKey, infoRequest: infoRequest) { response in
+    switch response {
+    case .success(let infoResponse):
+        // handle FlickrInfoResponse
+    case .failure(let error):
+        // handle error
+    }
+}
+```
+
+**Get comments** (no OAuth required)
 
 ```swift
 let commentsRequest = FlickrCommentsRequest(photo_id: photoId)
-getComments(apiKey: apiKey, 
-            commentsRequest: commentsRequest,
-            completion: { response in
-               switch response {
-               case .success(let comments):
-                   //handle comments
-               case .failure(let error):
-                   //handle error
-               }
-})
-```
-* Fave (requires oauthToken and oauthSecret)
-
-```swift
-let request = FlickrFaveRequest(photo_id: photoId)
-fave(apiKey: apiKey, 
-    apiSecret: apiSecret,
-    oauthToken: oauthToken, 
-    oauthTokenSecret: oauthTokenSecret,
-    faveRequest: request, 
-    completion: { response in
-       switch response {
-       case .success():
-           //handle success
-       case .failure(let error):
-           //handle error
+getComments(apiKey: apiKey, commentsRequest: commentsRequest) { response in
+    switch response {
+    case .success(let comments):
+        // handle [String]
+    case .failure(let error):
+        // handle error
     }
-})
+}
 ```
 
-* Unfave (requires oauthToken and oauthSecret)
+**Fave** (OAuth required)
 
 ```swift
-let request = FlickrFaveRequest(photo_id: photoId)
-unfave(apiKey: apiKey,
-       apiSecret: apiSecret, 
-       oauthToken: oauthToken, 
-       oauthTokenSecret: oauthTokenSecret, 
-       faveRequest: request, 
-       completion: { response in
-          switch response {
-          case .success():
-              //handle success
-          case .failure(let error):
-              //handle error
-       }
-})
+let faveRequest = FlickrFaveRequest(photo_id: photoId)
+fave(
+    apiKey: apiKey,
+    apiSecret: apiSecret,
+    oauthToken: oauthToken,
+    oauthTokenSecret: oauthTokenSecret,
+    faveRequest: faveRequest
+) { response in
+    switch response {
+    case .success:
+        // handle success
+    case .failure(let error):
+        // handle error
+    }
+}
 ```
 
-* Comment (requires oauthToken and oauthSecret)
+**Unfave** (OAuth required)
 
 ```swift
-let commentRequest = FlickrCommentRequest(photo_id: photoId,
-                                          comment_text: commentText)
-comment(apiKey: apiKey, 
-        apiSecret: apiSecret, 
-        oauthToken: oauthToken,
-        oauthTokenSecret: oauthTokenSecret,
-        commentRequest: commentRequest, 
-        completion: { response in
-           switch response {
-           case .success():
-               //handle success
-           case .failure(let error):
-               //handle error
-            }
-})
+let faveRequest = FlickrFaveRequest(photo_id: photoId)
+unfave(
+    apiKey: apiKey,
+    apiSecret: apiSecret,
+    oauthToken: oauthToken,
+    oauthTokenSecret: oauthTokenSecret,
+    faveRequest: faveRequest
+) { response in
+    switch response {
+    case .success:
+        // handle success
+    case .failure(let error):
+        // handle error
+    }
+}
+```
+
+**Comment** (OAuth required)
+
+```swift
+let commentRequest = FlickrCommentRequest(photo_id: photoId, comment_text: commentText)
+comment(
+    apiKey: apiKey,
+    apiSecret: apiSecret,
+    oauthToken: oauthToken,
+    oauthTokenSecret: oauthTokenSecret,
+    commentRequest: commentRequest
+) { response in
+    switch response {
+    case .success:
+        // handle success
+    case .failure(let error):
+        // handle error
+    }
+}
 ```

@@ -19,6 +19,9 @@ public protocol FlickrOAuthProtocol {
 }
 
 extension FlickrOAuthProtocol {
+
+    private var repository: FlickrAPIRepository { FlickrAPIRepository() }
+
     public func performOAuthFlow(
         from viewController: UIViewController,
         apiKey: String,
@@ -26,7 +29,7 @@ extension FlickrOAuthProtocol {
         callbackUrlString: String,
         completion: @escaping (Result<AccessTokenResponse, Error>) -> Void
     ) {
-        FlickrAPIRepository().getRequestToken(
+        repository.getRequestToken(
             apiKey: apiKey,
             apiSecret: apiSecret,
             callbackUrlString: callbackUrlString
@@ -103,7 +106,7 @@ extension FlickrOAuthProtocol {
         oauthVerifier: String,
         completion: @escaping (Result<AccessTokenResponse, Error>) -> Void
     ) {
-        FlickrAPIRepository().getAccessToken(
+        repository.getAccessToken(
             apiKey: apiKey,
             apiSecret: apiSecret,
             oauthToken: oauthToken,

@@ -26,7 +26,7 @@ methods directly.
 
 ---
 
-## v2 changes vs v1
+| v2 changes vs v1 — audit fixes applied (v2.1)
 
 | Area | v1 | v2 |
 |---|---|---|
@@ -35,13 +35,19 @@ methods directly.
 | `FlickrEndpoints` | `struct` with `let` | caseless `enum` with `static let` |
 | NS legacy types | `NSDate`, `NSUUID`, `NSCharacterSet`, `NSURLComponents` | pure Swift types |
 | OAuth typo | `encriptedURLWithBaseURL` | `encryptedURLWithBaseURL` |
-| Dead code | `generatePermsURL` + `permsEndpoint` | removed |
+| Dead code | `generatePermsURL` + `permsEndpoint` + `getFavoritesEndPoint` | removed |
 | `URLSession` | hardcoded `.shared` | injected via `FlickrAPIRepository.init(session:)` |
 | HTTP validation | none | `validateHTTPResponse` checks 200–299 |
 | `getImage` caching | unreliable (bare URL dataTask) | `URLRequest(cachePolicy: .returnCacheDataElseLoad)` |
 | `Comment._content` | leading-underscore property | `CodingKeys` mapping, property is `content` |
 | `FlickrPhotosRequest.page`/`per_page` | `String` | `Int` (breaking change) |
 | `Sendable` | — | all public structs conform |
+| `FlickrAPIError` | `Error` | `Error, Equatable` |
+| `FlickrCommentsRequest.photo_id` | internal | `public` |
+| nil-URL silent returns in OAuth | silent | calls `completion(.failure(.parsingError))` |
+| `FlickrOAuthProtocol` repository | inline `FlickrAPIRepository()` per call | `private var repository` computed property |
+| Test tearDown | missing | resets `CapturingURLProtocol` shared state |
+| Linux test artifacts | present | removed |
 | Unit tests | placeholder only | 13 tests across 5 suites |
 | CI | none | GitHub Actions `ios.yml` |
 
@@ -157,12 +163,14 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 ## Commit history
 
 ```
-(v2 branch — to be filled after first v2 commit)
-2977c1d  docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
-442d7cb  Updated total JSON field from String to Int
-febaa49  Fixed typo in Readme
-ccd3bc5  Version 1.0.0
-9320964  Initial commit
+(v2 branch)
+TBD       fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown, remove obsolete Linux test files, README v2
+93d5920   feat(v2): Phase 1+2 modernisation — NS types, FlickrEndpoints enum, URLSession injection, HTTP validation, page/per_page Int, Sendable, 13 unit tests, CI workflow
+2977c1d   docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
+442d7cb   Updated total JSON field from String to Int
+febaa49   Fixed typo in Readme
+ccd3bc5   Version 1.0.0
+9320964   Initial commit
 ```
 
 ---

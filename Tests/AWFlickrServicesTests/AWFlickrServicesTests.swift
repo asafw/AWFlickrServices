@@ -152,6 +152,14 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         repository = FlickrAPIRepository(session: session)
         CapturingURLProtocol.stubbedStatusCode = 200
         CapturingURLProtocol.stubbedData = Data()
+        CapturingURLProtocol.lastRequest = nil
+    }
+
+    override func tearDown() {
+        CapturingURLProtocol.lastRequest = nil
+        CapturingURLProtocol.stubbedData = Data()
+        CapturingURLProtocol.stubbedStatusCode = 200
+        super.tearDown()
     }
 
     func testGetPhotosRequestContainsSearchMethod() {

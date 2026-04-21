@@ -103,7 +103,7 @@ public struct Dates: Decodable, Sendable {
 
 /// Request model for fetching comments on a photo.
 public struct FlickrCommentsRequest: Encodable, Sendable {
-    let photo_id: String
+    public let photo_id: String
 
     public init(photo_id: String) {
         self.photo_id = photo_id

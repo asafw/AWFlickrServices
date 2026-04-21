@@ -9,7 +9,6 @@
 enum FlickrEndpoints {
     static let hostURL = "https://api.flickr.com/services/rest/"
     static let searchEndpoint = "flickr.photos.search"
-    static let getFavoritesEndPoint = "flickr.favorites.getList"
     static let faveEndpoint = "flickr.favorites.add"
     static let unFaveEndpoint = "flickr.favorites.remove"
     static let commentEndpoint = "flickr.photos.comments.addComment"

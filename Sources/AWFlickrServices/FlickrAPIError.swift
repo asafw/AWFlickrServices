@@ -5,7 +5,7 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-public enum FlickrAPIError: Error {
+public enum FlickrAPIError: Error, Equatable {
     case parsingError
     case networkError
     case downloadImageError

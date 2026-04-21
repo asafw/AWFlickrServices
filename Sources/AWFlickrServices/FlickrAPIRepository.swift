@@ -74,7 +74,7 @@ struct FlickrAPIRepository {
             apiKey: apiKey,
             apiSecret: apiSecret,
             callbackUrlString: callbackUrlString
-        ) else { return }
+        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
         session.dataTask(with: URLRequest(url: url)) { data, response, error in
             if let error { completion(.failure(error)); return }
             guard let data, validateHTTPResponse(response) else {
@@ -123,7 +123,7 @@ struct FlickrAPIRepository {
             oauthToken: oauthToken,
             oauthTokenSecret: oauthTokenSecret,
             oauthVerifier: oauthVerifier
-        ) else { return }
+        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
         session.dataTask(with: URLRequest(url: url)) { data, response, error in
             if let error { completion(.failure(error)); return }
             guard let data, validateHTTPResponse(response) else {
