@@ -1,5 +1,5 @@
 #!/usr/bin/env zsh
-# macos_screenshots.sh — Launch FlickrDemoApp, drive it via osascript, capture windows.
+# macos_screenshots.sh — Launch FlickrDemoApp, search for cats, capture windows.
 #
 # Usage (from repo root):
 #   bash scripts/macos_screenshots.sh
@@ -33,8 +33,6 @@ swift build --product FlickrDemoApp 2>&1 | tail -3
 # ── Helper: capture the frontmost FlickrDemoApp window ───────────────────────
 capture_window() {
   local name="$1"
-  # Pass APP_PID so the script can activate the app via NSRunningApplication
-  # before measuring bounds — no accessibility permissions required.
   python3 "$REPO_ROOT/scripts/capture_macos_window.py" "FlickrDemoApp" \
     "$OUT_DIR/${name}.png" "$APP_PID" 2>&1 || {
     echo "  ⚠ Quartz capture failed; falling back to full screen"
@@ -43,49 +41,38 @@ capture_window() {
   echo "📸 ${name}.png"
 }
 
-# ── Launch app ───────────────────────────────────────────────────────────────
+# ── Screenshot 1: empty state ────────────────────────────────────────────────
 echo "▶ Launching FlickrDemoApp (empty state)…"
 FLICKR_API_KEY="$KEY" "$APP_BIN" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
-
-# Wait for window to appear.
-sleep 5
-
-# ── Screenshot 1: empty / sign-in state ─────────────────────────────────────
+sleep 4
 capture_window "macos_empty_state"
-
-# Kill and relaunch with MOCK_PHOTOS so photos appear instantly (bypasses the
-# corporate proxy that blocks api.flickr.com in this environment).
 kill $APP_PID 2>/dev/null || true
 trap - EXIT
 sleep 1
 
-echo "▶ Launching FlickrDemoApp (mock photos)…"
-FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_AUTH=1 "$APP_BIN" &
+# ── Screenshot 2: search results (real API + real images) ───────────────────
+echo "▶ Launching FlickrDemoApp (search: cat)…"
+FLICKR_API_KEY="$KEY" AUTO_SEARCH=cat "$APP_BIN" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
-
-# Photos populate immediately on init; wait for SwiftUI to render + CDN load.
-sleep 10
-
-# ── Screenshot 2: search results grid ────────────────────────────────────────
+# Wait for API response + thumbnail images to load from CDN.
+sleep 15
 capture_window "macos_search_results"
-
-# Kill and relaunch with MOCK_DETAIL so the app immediately presents the
-# photo detail sheet — no osascript click interaction needed.
 kill $APP_PID 2>/dev/null || true
 trap - EXIT
 sleep 1
 
-echo "▶ Launching FlickrDemoApp (mock detail)…"
-FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_AUTH=1 MOCK_DETAIL=1 "$APP_BIN" &
+# ── Screenshot 3: photo detail ───────────────────────────────────────────────
+# Use MOCK_PHOTOS so the first photo is available instantly when MOCK_DETAIL opens
+# the sheet. The detail view still downloads the real CDN image from Flickr.
+echo "▶ Launching FlickrDemoApp (photo detail)…"
+FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_DETAIL=1 "$APP_BIN" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
-
-sleep 10
-
-# ── Screenshot 3: photo detail ────────────────────────────────────────────────
+# Wait for search results, then detail sheet opens automatically via MOCK_DETAIL.
+sleep 15
 capture_window "macos_photo_detail"
 
 echo "▶ Done. Screenshots written to $OUT_DIR"

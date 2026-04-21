@@ -38,6 +38,8 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
     /// Set by MOCK_DETAIL seam — ContentView presents a detail sheet for the first photo.
     @Published var showScreenshotDetail: Bool = false
 
+    private var cancellables = Set<AnyCancellable>()
+
     #if DEBUG
     /// Pre-populated by MOCK_PHOTOS seam so PhotoDetailView skips network calls.
     var mockPhotoInfo: FlickrInfoResponse? = nil
@@ -69,17 +71,24 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
             }
         }
 
-        // MOCK_PHOTOS seam: bypasses network entirely for screenshot tests.
-        // Set MOCK_PHOTOS to any non-empty value to immediately populate photos
-        // with real Flickr cat photo data (captured 2026-04).
-        // MOCK_DETAIL seam: makes ContentView immediately present the detail sheet
-        // for the first mock photo. Requires MOCK_PHOTOS to also be set.
+        // MOCK_DETAIL seam: opens the detail sheet for the first photo once photos are loaded.
+        // Works with both MOCK_PHOTOS (instant) and AUTO_SEARCH (async).
         if env["MOCK_DETAIL"] != nil {
-            showScreenshotDetail = true
+            if env["MOCK_PHOTOS"] != nil {
+                // Photos will be set synchronously below — open sheet immediately.
+                showScreenshotDetail = true
+            } else {
+                // Photos arrive asynchronously via search; observe and open once they appear.
+                $photos
+                    .filter { !$0.isEmpty }
+                    .first()
+                    .receive(on: DispatchQueue.main)
+                    .sink { [weak self] _ in self?.showScreenshotDetail = true }
+                    .store(in: &cancellables)
+            }
         }
 
         if env["MOCK_PHOTOS"] != nil {
-            searchText = "cat"
             let json = """
             [
               {"id":"55222618564","owner":"30052849@N07","secret":"716c1df7a1","server":"65535","farm":66,"title":"cat"},
