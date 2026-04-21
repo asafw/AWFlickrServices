@@ -175,7 +175,7 @@ private func oauthEncodedString(string: String) -> String {
 
 private func hmacsha1EncryptedString(string: String, key: String) -> String {
     var digest = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
-    CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA1), key, key.count, string, string.count, &digest)
+    CCHmac(CCHmacAlgorithm(kCCHmacAlgSHA1), key, key.utf8.count, string, string.utf8.count, &digest)
     return Data(digest).base64EncodedString()
 }
 

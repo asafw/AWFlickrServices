@@ -229,4 +229,66 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         XCTAssertTrue(url.contains("flickr.photos.getInfo"), "URL should contain getInfo method, got: \(url)")
         XCTAssertTrue(url.contains("photo_id=999"))
     }
+
+    func testGetCommentsRequestContainsCommentsMethod() {
+        let expectation = expectation(description: "request sent")
+        CapturingURLProtocol.stubbedData = Data("""
+        {"comments":{"comment":[{"_content":"nice!"}]}}
+        """.utf8)
+
+        repository.getComments(
+            apiKey: "KEY",
+            commentsRequest: FlickrCommentsRequest(photo_id: "777")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("flickr.photos.comments.getList"), "URL should contain getList method, got: \(url)")
+        XCTAssertTrue(url.contains("photo_id=777"))
+    }
+
+    func testFaveRequestContainsFaveMethod() {
+        let expectation = expectation(description: "request sent")
+
+        repository.fave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "111")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("flickr.favorites.add"), "URL should contain favorites.add method, got: \(url)")
+        XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
+    }
+
+    func testUnfaveRequestContainsUnfaveMethod() {
+        let expectation = expectation(description: "request sent")
+
+        repository.unfave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "222")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("flickr.favorites.remove"), "URL should contain favorites.remove method, got: \(url)")
+        XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
+    }
+
+    func testCommentRequestContainsCommentMethod() {
+        let expectation = expectation(description: "request sent")
+
+        repository.comment(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            commentRequest: FlickrCommentRequest(photo_id: "333", comment_text: "hello")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertTrue(url.contains("flickr.photos.comments.addComment"), "URL should contain addComment method, got: \(url)")
+        XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
+    }
 }

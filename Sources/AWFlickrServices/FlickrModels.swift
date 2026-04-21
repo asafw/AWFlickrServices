@@ -8,10 +8,10 @@
 /// A single Flickr photo returned from a search or faves response.
 public struct FlickrPhoto: Decodable, Sendable {
     public let id: String
-    let owner: String?
+    public let owner: String?
     public let secret: String
-    let server: String
-    let farm: Int
+    public let server: String
+    public let farm: Int
     public let title: String
 
     /// Returns the URL string for the small-square thumbnail (75×75 px).
