@@ -3,19 +3,30 @@
 capture_macos_window.py — Capture a named macOS app window using Quartz.
 
 Usage:
-    python3 capture_macos_window.py <owner_name> <output.png>
+    python3 capture_macos_window.py <owner_name> <output.png> [pid]
 
-Finds the frontmost window belonging to a process whose name contains
-<owner_name>, reads its on-screen bounds from Quartz, then uses
-`screencapture -R x,y,w,h` for a region capture.
-
-No accessibility permissions required. Screen Recording permission is NOT
-needed for region-based screencapture (unlike window-ID capture).
+Finds the window belonging to a process whose name contains <owner_name>,
+reads its on-screen bounds from Quartz, optionally activates the app by
+PID (no accessibility permissions needed), then uses screencapture -R.
 """
 
 import sys
 import subprocess
+import time
 import Quartz
+
+def activate_app(pid: int) -> None:
+    """Bring the app to the foreground using NSRunningApplication (no permissions needed)."""
+    try:
+        import AppKit
+        app = AppKit.NSRunningApplication.runningApplicationWithProcessIdentifier_(pid)
+        if app:
+            # NSApplicationActivateIgnoringOtherApps = 1 << 1
+            app.activateWithOptions_(1 << 1)
+            time.sleep(0.8)  # Let the window reach the front before measuring bounds
+    except Exception as e:
+        print(f"  (activate warning: {e})", file=sys.stderr)
+
 
 def find_window_bounds(owner_name: str) -> tuple[int, int, int, int] | None:
     """Return (x, y, width, height) in logical screen coords, or None."""
@@ -38,11 +49,17 @@ def find_window_bounds(owner_name: str) -> tuple[int, int, int, int] | None:
 
 
 def main():
-    if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} <owner_name> <output.png>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print(f"Usage: {sys.argv[0]} <owner_name> <output.png> [pid]", file=sys.stderr)
         sys.exit(1)
 
     owner_name, output = sys.argv[1], sys.argv[2]
+    pid = int(sys.argv[3]) if len(sys.argv) >= 4 else None
+
+    # Activate the app so it is in front when we capture.
+    if pid is not None:
+        activate_app(pid)
+
     bounds = find_window_bounds(owner_name)
     if bounds is None:
         print(f"No on-screen window found for '{owner_name}'", file=sys.stderr)
@@ -64,4 +81,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 

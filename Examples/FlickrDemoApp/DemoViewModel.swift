@@ -36,6 +36,12 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
     /// Set by MOCK_DETAIL seam — ContentView presents a detail sheet for the first photo.
     @Published var showScreenshotDetail: Bool = false
 
+    #if DEBUG
+    /// Pre-populated by MOCK_PHOTOS seam so PhotoDetailView skips network calls.
+    var mockPhotoInfo: FlickrInfoResponse? = nil
+    var mockPhotoComments: [String] = []
+    #endif
+
     // MARK: - Init
 
     init() {
@@ -92,6 +98,16 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
                let decoded = try? JSONDecoder().decode([FlickrPhoto].self, from: data) {
                 photos = decoded
             }
+
+            // Pre-populate detail view with mock info and comments so the
+            // photo detail screenshot shows rich metadata instead of spinners.
+            let infoJSON = """
+            {"photo":{"owner":{"realname":"Wildlife Photographer","location":"San Francisco, CA"},"dates":{"taken":"2026-04-01 09:30:00"},"views":"4812"}}
+            """
+            mockPhotoInfo = (infoJSON.data(using: .utf8)).flatMap {
+                try? JSONDecoder().decode(FlickrInfoResponse.self, from: $0)
+            }
+            mockPhotoComments = ["Beautiful shot! \u{1F431}", "Love the composition!", "Adorable 😺"]
         }
         #endif
     }

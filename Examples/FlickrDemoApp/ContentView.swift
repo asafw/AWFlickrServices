@@ -67,6 +67,10 @@ struct ContentView: View {
                 .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("search_field")
                 .onSubmit { viewModel.search() }
+                #if os(macOS)
+                // Suppress macOS Passwords/AutoFill helper — the app isn't a sign-in form.
+                .textContentType(nil as NSTextContentType?)
+                #endif
 
             Button("Search") { viewModel.search() }
                 .accessibilityIdentifier("search_button")

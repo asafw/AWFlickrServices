@@ -25,6 +25,10 @@ struct AuthView: View {
                         .fixedSize()
                     SecureField("Required for fave / comment", text: $viewModel.apiSecret)
                         .textFieldStyle(.roundedBorder)
+                        #if os(macOS)
+                        // Suppress macOS Passwords/AutoFill helper — this is an API secret, not a login password.
+                        .textContentType(nil as NSTextContentType?)
+                        #endif
                 }
                 .padding(.horizontal)
 

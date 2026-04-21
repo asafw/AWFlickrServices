@@ -33,9 +33,10 @@ swift build --product FlickrDemoApp 2>&1 | tail -3
 # ── Helper: capture the frontmost FlickrDemoApp window ───────────────────────
 capture_window() {
   local name="$1"
-  # Use Quartz window enumeration — does not require accessibility permissions.
+  # Pass APP_PID so the script can activate the app via NSRunningApplication
+  # before measuring bounds — no accessibility permissions required.
   python3 "$REPO_ROOT/scripts/capture_macos_window.py" "FlickrDemoApp" \
-    "$OUT_DIR/${name}.png" 2>&1 || {
+    "$OUT_DIR/${name}.png" "$APP_PID" 2>&1 || {
     echo "  ⚠ Quartz capture failed; falling back to full screen"
     screencapture -x "$OUT_DIR/${name}.png"
   }
@@ -50,10 +51,6 @@ trap 'kill $APP_PID 2>/dev/null; true' EXIT
 
 # Wait for window to appear.
 sleep 5
-
-# Bring it to front.
-osascript -e 'tell application "FlickrDemoApp" to activate' 2>/dev/null || true
-sleep 0.5
 
 # ── Screenshot 1: empty / sign-in state ─────────────────────────────────────
 capture_window "macos_empty_state"
@@ -72,9 +69,6 @@ trap 'kill $APP_PID 2>/dev/null; true' EXIT
 # Photos populate immediately on init; wait for SwiftUI to render.
 sleep 5
 
-osascript -e 'tell application "FlickrDemoApp" to activate' 2>/dev/null || true
-sleep 0.5
-
 # ── Screenshot 2: search results grid ────────────────────────────────────────
 capture_window "macos_search_results"
 
@@ -90,9 +84,6 @@ APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
 
 sleep 5
-
-osascript -e 'tell application "FlickrDemoApp" to activate' 2>/dev/null || true
-sleep 0.5
 
 # ── Screenshot 3: photo detail ────────────────────────────────────────────────
 capture_window "macos_photo_detail"

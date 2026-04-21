@@ -170,6 +170,15 @@ struct PhotoDetailView: View {
     // MARK: - Data loading
 
     private func loadAll() async {
+        #if DEBUG
+        if let mockInfo = viewModel.mockPhotoInfo {
+            isLoadingInfo = false
+            info = mockInfo
+            comments = viewModel.mockPhotoComments
+            return
+        }
+        #endif
+
         if let url = URL(string: photo.largePhotoURLString()) {
             service.downloadImageData(from: url) { result in
                 if case .success(let data) = result {
