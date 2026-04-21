@@ -53,7 +53,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
 
         // UITest / screenshot seam: pass -mockAuth in launchArguments to pre-seed
         // a fake OAuth token so photo detail shows fave/comment controls.
-        if args.contains("-mockAuth") {
+        if args.contains("-mockAuth") || env["MOCK_AUTH"] != nil {
             oauthToken       = "mock_token_for_screenshot"
             oauthTokenSecret = "mock_secret_for_screenshot"
             signedInAs       = "screenshot_user"
@@ -179,18 +179,57 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
 
 #if DEBUG
 extension DemoViewModel {
-    /// Returns PNG Data for a solid gray image at the given pixel side length.
-    /// Used by screenshot tests to fill photo view areas without any network call.
-    static func screenshotPlaceholderData(side: Int = 300) -> Data? {
-        let space = CGColorSpaceCreateDeviceGray()
+    /// Returns PNG Data for a diagonal gradient image seeded by `seed`.
+    /// Different URL strings produce visually distinct gradient colours so the
+    /// screenshot grid looks like real photos rather than identical grey boxes.
+    static func screenshotPlaceholderData(seed: String = "", side: Int = 300) -> Data? {
+        // 12 warm/cool palettes: (topLeft R,G,B), (bottomRight R,G,B)
+        let palettes: [((CGFloat, CGFloat, CGFloat), (CGFloat, CGFloat, CGFloat))] = [
+            ((0.95, 0.60, 0.30), (0.80, 0.40, 0.15)),  // amber
+            ((0.30, 0.55, 0.90), (0.15, 0.35, 0.75)),  // blue
+            ((0.35, 0.72, 0.45), (0.15, 0.52, 0.25)),  // green
+            ((0.70, 0.35, 0.75), (0.50, 0.15, 0.55)),  // purple
+            ((0.92, 0.75, 0.20), (0.72, 0.55, 0.10)),  // golden
+            ((0.20, 0.72, 0.82), (0.10, 0.52, 0.62)),  // teal
+            ((0.88, 0.30, 0.30), (0.68, 0.10, 0.10)),  // red
+            ((0.50, 0.42, 0.85), (0.30, 0.22, 0.65)),  // indigo
+            ((0.28, 0.62, 0.28), (0.10, 0.42, 0.10)),  // dark green
+            ((0.92, 0.52, 0.62), (0.72, 0.32, 0.42)),  // rose
+            ((0.62, 0.42, 0.28), (0.42, 0.22, 0.10)),  // brown
+            ((0.42, 0.72, 0.72), (0.22, 0.52, 0.52)),  // cyan
+        ]
+        // Stable DJB2 hash — does not use Swift.hashValue (non-deterministic).
+        var h: Int = 5381
+        for c in seed.utf8 { h = (h &<< 5) &+ h &+ Int(c) }
+        let palette = palettes[abs(h) % palettes.count]
+
+        let space = CGColorSpaceCreateDeviceRGB()
         guard let ctx = CGContext(
             data: nil, width: side, height: side,
-            bitsPerComponent: 8, bytesPerRow: side,
+            bitsPerComponent: 8, bytesPerRow: 0,
             space: space,
-            bitmapInfo: CGImageAlphaInfo.none.rawValue
+            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
         ) else { return nil }
-        ctx.setFillColor(gray: 0.82, alpha: 1.0)
-        ctx.fill(CGRect(x: 0, y: 0, width: side, height: side))
+
+        let c1 = palette.0, c2 = palette.1
+        guard
+            let startColor = CGColor(colorSpace: space, components: [c1.0, c1.1, c1.2, 1.0]),
+            let endColor   = CGColor(colorSpace: space, components: [c2.0, c2.1, c2.2, 1.0]),
+            let gradient   = CGGradient(
+                colorsSpace: space,
+                colors: [startColor, endColor] as CFArray,
+                locations: [0.0, 1.0]
+            )
+        else { return nil }
+
+        // Draw diagonal gradient: lighter tone at visual top-left, darker at bottom-right.
+        ctx.drawLinearGradient(
+            gradient,
+            start: CGPoint(x: 0, y: CGFloat(side)),
+            end:   CGPoint(x: CGFloat(side), y: 0),
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
+        )
+
         guard let cgImage = ctx.makeImage() else { return nil }
         let mutableData = NSMutableData()
         guard let dest = CGImageDestinationCreateWithData(

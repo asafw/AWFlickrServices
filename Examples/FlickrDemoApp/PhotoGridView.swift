@@ -54,12 +54,6 @@ private struct ThumbnailView: View {
         .frame(width: 120, height: 120)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .task(id: urlString) {
-            #if DEBUG
-            if ProcessInfo.processInfo.environment["MOCK_PHOTOS"] != nil {
-                imageData = DemoViewModel.screenshotPlaceholderData(side: 120)
-                return
-            }
-            #endif
             guard let url = URL(string: urlString) else { return }
             loader.downloadImageData(from: url) { result in
                 if case .success(let data) = result {

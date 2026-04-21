@@ -175,8 +175,7 @@ struct PhotoDetailView: View {
             isLoadingInfo = false
             info = mockInfo
             comments = viewModel.mockPhotoComments
-            imageData = DemoViewModel.screenshotPlaceholderData(side: 400)
-            return
+            // Fall through — still download the real photo from CDN.
         }
         #endif
 

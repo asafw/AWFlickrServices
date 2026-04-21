@@ -51,7 +51,7 @@ final class FlickrDemoScreenshots: XCTestCase {
         // Cells appear as soon as the photos array is non-empty (no image load needed).
         let firstPhoto = app.scrollViews.firstMatch.buttons.firstMatch
         XCTAssert(firstPhoto.waitForExistence(timeout: 5), "Mock photo cells did not appear")
-        sleep(2) // let thumbnail images attempt to paint
+        sleep(8) // let thumbnail images download from CDN
         save("ios_search_results")
     }
 
@@ -64,7 +64,7 @@ final class FlickrDemoScreenshots: XCTestCase {
         let firstPhoto = app.scrollViews.firstMatch.buttons.firstMatch
         XCTAssert(firstPhoto.waitForExistence(timeout: 5), "Mock photo cells did not appear")
         firstPhoto.tap()
-        sleep(3) // let detail view render
+        sleep(8) // let large photo download from CDN
         save("ios_photo_detail")
     }
 
@@ -77,11 +77,11 @@ final class FlickrDemoScreenshots: XCTestCase {
 
         let firstPhoto = app.scrollViews.firstMatch.buttons.firstMatch
         XCTAssert(firstPhoto.waitForExistence(timeout: 5), "Mock photo cells did not appear")
-        sleep(2)
+        sleep(8)
         save("ios_search_results_signed_in")
 
         firstPhoto.tap()
-        sleep(3)
+        sleep(8)
         save("ios_photo_detail_authenticated")
     }
 }

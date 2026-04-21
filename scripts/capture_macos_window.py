@@ -23,13 +23,13 @@ def activate_app(pid: int) -> None:
         if app:
             # NSApplicationActivateIgnoringOtherApps = 1 << 1
             app.activateWithOptions_(1 << 1)
-            time.sleep(0.8)  # Let the window reach the front before measuring bounds
+            time.sleep(1.5)  # Let the window reach the front and Quartz settle
     except Exception as e:
         print(f"  (activate warning: {e})", file=sys.stderr)
 
 
-def find_window_bounds(owner_name: str) -> tuple[int, int, int, int] | None:
-    """Return (x, y, width, height) in logical screen coords, or None."""
+def find_window(owner_name: str) -> tuple[int, int, int, int, int] | None:
+    """Return (window_id, x, y, width, height) for the first matching on-screen window."""
     windows = Quartz.CGWindowListCopyWindowInfo(
         Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
         Quartz.kCGNullWindowID,
@@ -43,8 +43,9 @@ def find_window_bounds(owner_name: str) -> tuple[int, int, int, int] | None:
             y = int(bounds.get("Y", 0))
             width = int(bounds.get("Width", 0))
             height = int(bounds.get("Height", 0))
-            if width > 0 and height > 0:
-                return x, y, width, height
+            window_id = w.get(Quartz.kCGWindowNumber, None)
+            if width > 0 and height > 0 and window_id is not None:
+                return window_id, x, y, width, height
     return None
 
 
@@ -56,29 +57,29 @@ def main():
     owner_name, output = sys.argv[1], sys.argv[2]
     pid = int(sys.argv[3]) if len(sys.argv) >= 4 else None
 
-    # Activate the app so it is in front when we capture.
+    # Bring the app to front so window server marks it as on-screen.
     if pid is not None:
         activate_app(pid)
 
-    bounds = find_window_bounds(owner_name)
-    if bounds is None:
+    result = find_window(owner_name)
+    if result is None:
         print(f"No on-screen window found for '{owner_name}'", file=sys.stderr)
         sys.exit(1)
 
-    x, y, w, h = bounds
+    window_id, x, y, w, h = result
     region = f"{x},{y},{w},{h}"
-    print(f"Window bounds for '{owner_name}': {region}")
-    result = subprocess.run(
+    print(f"Window bounds for '{owner_name}': {region} (id={window_id})")
+    # -R captures the screen region at those coordinates. The app must be
+    # frontmost (activate_app ensures this) so it is not obscured.
+    capture = subprocess.run(
         ["screencapture", "-x", "-R", region, output],
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
-        print(f"screencapture error: {result.stderr}", file=sys.stderr)
+    if capture.returncode != 0:
+        print(f"screencapture error: {capture.stderr}", file=sys.stderr)
         sys.exit(1)
     print(f"Saved: {output}")
-
-
 if __name__ == "__main__":
     main()
 

@@ -62,12 +62,12 @@ trap - EXIT
 sleep 1
 
 echo "▶ Launching FlickrDemoApp (mock photos)…"
-FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 "$APP_BIN" &
+FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_AUTH=1 "$APP_BIN" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
 
-# Photos populate immediately on init; wait for SwiftUI to render.
-sleep 5
+# Photos populate immediately on init; wait for SwiftUI to render + CDN load.
+sleep 10
 
 # ── Screenshot 2: search results grid ────────────────────────────────────────
 capture_window "macos_search_results"
@@ -79,11 +79,11 @@ trap - EXIT
 sleep 1
 
 echo "▶ Launching FlickrDemoApp (mock detail)…"
-FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_DETAIL=1 "$APP_BIN" &
+FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_AUTH=1 MOCK_DETAIL=1 "$APP_BIN" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
 
-sleep 5
+sleep 10
 
 # ── Screenshot 3: photo detail ────────────────────────────────────────────────
 capture_window "macos_photo_detail"
