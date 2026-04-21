@@ -219,4 +219,271 @@ final class FlickrSearchIntegrationTests: XCTestCase {
             XCTFail("getComments failed: \(error)")
         }
     }
+
+    // MARK: - Parameter wiring
+
+    /// Validates that `per_page` is actually sent and honoured by the API.
+    func testPerPageCountIsRespected() throws {
+        let key = try requireAPIKey()
+        let expectation = expectation(description: "search completes")
+        var photos: [FlickrPhoto] = []
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 3)
+        ) { result in
+            if case .success(let p) = result { photos = p }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 10)
+        XCTAssertEqual(photos.count, 3, "per_page: 3 should yield exactly 3 photos")
+    }
+
+    /// Validates that `page` is sent and that successive pages return distinct photo IDs.
+    func testPaginationReturnsDistinctPhotos() throws {
+        let key = try requireAPIKey()
+        let exp1 = expectation(description: "page 1")
+        let exp2 = expectation(description: "page 2")
+        var page1IDs: Set<String> = []
+        var page2IDs: Set<String> = []
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "nature", page: 1, per_page: 5)
+        ) { result in
+            if case .success(let photos) = result { page1IDs = Set(photos.map(\.id)) }
+            exp1.fulfill()
+        }
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "nature", page: 2, per_page: 5)
+        ) { result in
+            if case .success(let photos) = result { page2IDs = Set(photos.map(\.id)) }
+            exp2.fulfill()
+        }
+
+        wait(for: [exp1, exp2], timeout: 10)
+        XCTAssertFalse(page1IDs.isEmpty, "Page 1 must have results")
+        XCTAssertFalse(page2IDs.isEmpty, "Page 2 must have results")
+        XCTAssertTrue(
+            page1IDs.isDisjoint(with: page2IDs),
+            "Page 1 and page 2 should contain distinct photo IDs"
+        )
+    }
+
+    /// Validates RFC 3986 encoding of spaces in search terms end-to-end against the real API.
+    func testSearchTermWithSpacesDecodes() throws {
+        let key = try requireAPIKey()
+        let expectation = expectation(description: "search completes")
+        var photos: [FlickrPhoto] = []
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "golden gate bridge", page: 1, per_page: 3)
+        ) { result in
+            if case .success(let p) = result { photos = p }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 10)
+        XCTAssertFalse(photos.isEmpty, "Search for 'golden gate bridge' (with spaces) should return photos")
+        print("✅ Space-encoded search OK — \(photos.count) result(s)")
+    }
+
+    // MARK: - Error paths
+
+    /// Validates that an invalid key yields `.failure` rather than a crash or hang.
+    func testInvalidAPIKeyReturnsFailure() throws {
+        try XCTSkipIf(apiKey == nil || apiKey!.isEmpty, "Set FLICKR_API_KEY to run integration tests")
+        let expectation = expectation(description: "search completes")
+        var result: Result<[FlickrPhoto], Error>?
+
+        repository.getPhotos(
+            apiKey: "000000000000000000000000deadbeef",
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+        ) { r in
+            result = r
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 10)
+        switch result! {
+        case .success:
+            XCTFail("Expected failure for an invalid API key")
+        case .failure(let error):
+            print("✅ Invalid key correctly yielded error: \(error)")
+        }
+    }
+
+    /// Validates that requesting a page far beyond total results doesn't crash or error —
+    /// Flickr silently clamps to the last valid page and returns results.
+    func testPageBeyondTotalDoesNotError() throws {
+        let key = try requireAPIKey()
+        let expectation = expectation(description: "search completes")
+        var didFail = false
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 99_999, per_page: 5)
+        ) { result in
+            if case .failure = result { didFail = true }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 10)
+        // Flickr clamps to the last valid page and still returns results — never an error
+        XCTAssertFalse(didFail, "Page-beyond-total should complete with success, not failure")
+    }
+
+    // MARK: - CDN / model completeness
+
+    /// Validates that `largePhotoURLString()` resolves and returns non-empty data.
+    func testLargePhotoURLResolves() throws {
+        let key = try requireAPIKey()
+        let searchExp = expectation(description: "search done")
+        var firstPhoto: FlickrPhoto?
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+        ) { result in
+            if case .success(let photos) = result { firstPhoto = photos.first }
+            searchExp.fulfill()
+        }
+        wait(for: [searchExp], timeout: 10)
+        guard let photo = firstPhoto else { XCTFail("No photo returned"); return }
+
+        let largeURL = URL(string: photo.largePhotoURLString())!
+        let downloadExp = expectation(description: "large download done")
+        var downloadResult: Result<Data, Error>?
+
+        repository.downloadImageData(from: largeURL) { result in
+            downloadResult = result
+            downloadExp.fulfill()
+        }
+        wait(for: [downloadExp], timeout: 15)
+
+        switch downloadResult! {
+        case .success(let data):
+            XCTAssertFalse(data.isEmpty, "Large photo download must not be empty")
+            print("✅ Large CDN URL OK — \(data.count) bytes: \(largeURL)")
+        case .failure(let error):
+            XCTFail("Large photo URL failed: \(largeURL)\nError: \(error)")
+        }
+    }
+
+    /// Validates that downloaded image data starts with the JPEG magic bytes FF D8 FF,
+    /// confirming the server actually returned an image and not an HTML error page.
+    func testDownloadedThumbnailIsJPEG() throws {
+        let key = try requireAPIKey()
+        let searchExp = expectation(description: "search done")
+        var firstPhoto: FlickrPhoto?
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+        ) { result in
+            if case .success(let photos) = result { firstPhoto = photos.first }
+            searchExp.fulfill()
+        }
+        wait(for: [searchExp], timeout: 10)
+        guard let photo = firstPhoto else { XCTFail("No photo returned"); return }
+
+        let url = URL(string: photo.thumbnailPhotoURLString())!
+        let downloadExp = expectation(description: "download done")
+        var data: Data?
+
+        repository.downloadImageData(from: url) { result in
+            if case .success(let d) = result { data = d }
+            downloadExp.fulfill()
+        }
+        wait(for: [downloadExp], timeout: 10)
+
+        guard let bytes = data, bytes.count >= 3 else {
+            XCTFail("No data returned for thumbnail URL"); return
+        }
+        let magic = [bytes[0], bytes[1], bytes[2]]
+        XCTAssertEqual(
+            magic, [0xFF, 0xD8, 0xFF],
+            "Expected JPEG magic bytes FF D8 FF — got \(magic.map { String(format: "%02X", $0) }.joined(separator: " "))"
+        )
+        print("✅ Thumbnail is valid JPEG (\(bytes.count) bytes)")
+    }
+
+    /// Validates that `FlickrInfoResponse.photo.views` can be parsed as an Int
+    /// (it arrives as a JSON string but must always be numeric).
+    func testInfoViewsIsNumeric() throws {
+        let key = try requireAPIKey()
+        let searchExp = expectation(description: "search done")
+        var firstPhoto: FlickrPhoto?
+
+        repository.getPhotos(
+            apiKey: key,
+            photosRequest: FlickrPhotosRequest(text: "architecture", page: 1, per_page: 1)
+        ) { result in
+            if case .success(let photos) = result { firstPhoto = photos.first }
+            searchExp.fulfill()
+        }
+        wait(for: [searchExp], timeout: 10)
+        guard let photo = firstPhoto else { XCTFail("No photo returned"); return }
+
+        let infoExp = expectation(description: "getInfo done")
+        var infoResult: Result<FlickrInfoResponse, Error>?
+
+        repository.getInfo(
+            apiKey: key,
+            infoRequest: FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
+        ) { result in
+            infoResult = result
+            infoExp.fulfill()
+        }
+        wait(for: [infoExp], timeout: 10)
+
+        switch infoResult! {
+        case .success(let info):
+            let parsedViews = Int(info.photo.views)
+            XCTAssertNotNil(parsedViews, "views '\(info.photo.views)' must be parseable as Int")
+            print("✅ views is numeric: \(info.photo.views)")
+        case .failure(let error):
+            XCTFail("getInfo failed: \(error)")
+        }
+    }
+
+    // MARK: - Concurrency
+
+    /// Fires 3 searches concurrently and verifies all complete without crash or data corruption.
+    func testConcurrentSearchesCompleteWithoutCrash() throws {
+        let key = try requireAPIKey()
+        let terms = ["landscape", "portrait", "architecture"]
+        var expectations: [XCTestExpectation] = []
+        var results: [String: Int] = [:]
+        let lock = NSLock()
+
+        for term in terms {
+            let exp = expectation(description: "\(term) done")
+            expectations.append(exp)
+            DispatchQueue.global().async {
+                self.repository.getPhotos(
+                    apiKey: key,
+                    photosRequest: FlickrPhotosRequest(text: term, page: 1, per_page: 3)
+                ) { result in
+                    if case .success(let photos) = result {
+                        lock.lock()
+                        results[term] = photos.count
+                        lock.unlock()
+                    }
+                    exp.fulfill()
+                }
+            }
+        }
+
+        wait(for: expectations, timeout: 15)
+        XCTAssertEqual(results.count, 3, "All 3 concurrent searches must complete")
+        for term in terms {
+            XCTAssertEqual(results[term], 3, "'\(term)' search should return 3 photos")
+        }
+        print("✅ Concurrent searches OK: \(results)")
+    }
 }
