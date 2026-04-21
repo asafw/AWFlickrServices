@@ -1,79 +1,64 @@
 #!/usr/bin/env zsh
-# macos_screenshots.sh — Launch FlickrDemoApp, search for cats, capture windows.
-#
-# Usage (from repo root):
-#   bash scripts/macos_screenshots.sh
-#
-# Requires: FLICKR_API_KEY env var OR /tmp/flickr_api_key file.
-# Output: screenshots/macos/*.png
+# macos_screenshots.sh
+# 1. Launch app → screenshot empty state
+# 2. Relaunch with AUTO_SEARCH=cat → wait for images → screenshot search results
+# 3. Click first photo → wait → screenshot photo detail
 
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT_DIR="$REPO_ROOT/screenshots/macos"
-APP_BIN="$REPO_ROOT/.build/debug/FlickrDemoApp"
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+OUT="$REPO/screenshots/macos"
+APP="$REPO/.build/debug/FlickrDemoApp"
 
-mkdir -p "$OUT_DIR"
+mkdir -p "$OUT"
 
-# ── Resolve API key ──────────────────────────────────────────────────────────
-if [[ -n "${FLICKR_API_KEY:-}" ]]; then
-  KEY="$FLICKR_API_KEY"
-elif [[ -f /tmp/flickr_api_key ]]; then
-  KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')"
-else
-  echo "Error: set FLICKR_API_KEY or write your key to /tmp/flickr_api_key" >&2
-  exit 1
-fi
+KEY="${FLICKR_API_KEY:-}"
+[[ -z "$KEY" && -f /tmp/flickr_api_key ]] && KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')"
+[[ -z "$KEY" ]] && { echo "Error: set FLICKR_API_KEY"; exit 1; }
 
-# ── Build (incremental — fast on a warm cache) ───────────────────────────────
-echo "▶ Building FlickrDemoApp…"
-cd "$REPO_ROOT"
-swift build --product FlickrDemoApp 2>&1 | tail -3
+echo "▶ Building…"
+cd "$REPO"
+swift build --product FlickrDemoApp 2>&1 | tail -2
 
-# ── Helper: capture the frontmost FlickrDemoApp window ───────────────────────
-capture_window() {
-  local name="$1"
-  python3 "$REPO_ROOT/scripts/capture_macos_window.py" "FlickrDemoApp" \
-    "$OUT_DIR/${name}.png" "$APP_PID" 2>&1 || {
-    echo "  ⚠ Quartz capture failed; falling back to full screen"
-    screencapture -x "$OUT_DIR/${name}.png"
-  }
-  echo "📸 ${name}.png"
+get_bounds() {
+  python3 "$REPO/scripts/get_window_bounds.py" FlickrDemoApp
 }
 
-# ── Screenshot 1: empty state ────────────────────────────────────────────────
-echo "▶ Launching FlickrDemoApp (empty state)…"
-FLICKR_API_KEY="$KEY" "$APP_BIN" &
-APP_PID=$!
-trap 'kill $APP_PID 2>/dev/null; true' EXIT
-sleep 4
-capture_window "macos_empty_state"
-kill $APP_PID 2>/dev/null || true
-trap - EXIT
-sleep 1
+screenshot() {
+  local name="$1"
+  local bounds
+  bounds=$(get_bounds) || { echo "  window not found for $name"; exit 1; }
+  read -r WX WY WW WH <<< "$bounds"
+  screencapture -x -R "$WX,$WY,$WW,$WH" "$OUT/${name}.png"
+  echo "📸 ${name}.png  (${WW}x${WH})"
+}
 
-# ── Screenshot 2: search results (real API + real images) ───────────────────
-echo "▶ Launching FlickrDemoApp (search: cat)…"
-FLICKR_API_KEY="$KEY" AUTO_SEARCH=cat "$APP_BIN" &
+# 1. Empty state
+echo "▶ Launching (empty state)…"
+FLICKR_API_KEY="$KEY" "$APP" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null; true' EXIT
-# Wait for API response + thumbnail images to load from CDN.
+sleep 5
+screenshot "macos_empty_state"
+kill $APP_PID 2>/dev/null; trap - EXIT; sleep 1
+
+# 2. Search results — AUTO_SEARCH avoids focusing any text field
+echo "▶ Launching (AUTO_SEARCH=cat)…"
+FLICKR_API_KEY="$KEY" AUTO_SEARCH=cat "$APP" &
+APP_PID=$!
+trap 'kill $APP_PID 2>/dev/null; true' EXIT
 sleep 15
-capture_window "macos_search_results"
-kill $APP_PID 2>/dev/null || true
-trap - EXIT
-sleep 1
+screenshot "macos_search_results"
 
-# ── Screenshot 3: photo detail ───────────────────────────────────────────────
-# Use MOCK_PHOTOS so the first photo is available instantly when MOCK_DETAIL opens
-# the sheet. The detail view still downloads the real CDN image from Flickr.
-echo "▶ Launching FlickrDemoApp (photo detail)…"
-FLICKR_API_KEY="$KEY" MOCK_PHOTOS=1 MOCK_DETAIL=1 "$APP_BIN" &
-APP_PID=$!
-trap 'kill $APP_PID 2>/dev/null; true' EXIT
-# Wait for search results, then detail sheet opens automatically via MOCK_DETAIL.
-sleep 15
-capture_window "macos_photo_detail"
+# 3. Click first photo (approx center of first thumbnail cell)
+bounds=$(get_bounds)
+read -r WX WY WW WH <<< "$bounds"
+CLICK_X=$((WX + 80))
+CLICK_Y=$((WY + 220))
+echo "▶ Clicking first photo at ($CLICK_X, $CLICK_Y)…"
+cliclick c:${CLICK_X},${CLICK_Y}
+sleep 10
+screenshot "macos_photo_detail"
 
-echo "▶ Done. Screenshots written to $OUT_DIR"
-ls "$OUT_DIR"
+echo "▶ Done."
+ls "$OUT"
