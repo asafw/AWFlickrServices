@@ -8,4 +8,7 @@
 public enum FlickrAPIError: Error, Equatable {
     case parsingError
     case networkError
+    /// Flickr returned HTTP 200 with `{"stat":"fail","code":...,"message":...}`.
+    /// Distinct from a network failure — the server responded but rejected the request.
+    case apiError(code: Int, message: String)
 }

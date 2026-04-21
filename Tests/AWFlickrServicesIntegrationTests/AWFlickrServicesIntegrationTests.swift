@@ -294,8 +294,10 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
     // MARK: - Error paths
 
-    /// Validates that an invalid key yields `.failure` rather than a crash or hang.
-    func testInvalidAPIKeyReturnsFailure() throws {
+    /// Validates that an invalid key yields `FlickrAPIError.apiError` — not a crash, hang,
+    /// or raw DecodingError. Flickr returns HTTP 200 with `{"stat":"fail",...}` for bad keys,
+    /// so this also validates that `FlickrAPIRepository` inspects `stat` before decoding.
+    func testInvalidAPIKeyReturnsAPIError() throws {
         try XCTSkipIf(apiKey == nil || apiKey!.isEmpty, "Set FLICKR_API_KEY to run integration tests")
         let expectation = expectation(description: "search completes")
         var result: Result<[FlickrPhoto], Error>?
@@ -313,7 +315,12 @@ final class FlickrSearchIntegrationTests: XCTestCase {
         case .success:
             XCTFail("Expected failure for an invalid API key")
         case .failure(let error):
-            print("✅ Invalid key correctly yielded error: \(error)")
+            guard let apiError = error as? FlickrAPIError,
+                  case .apiError(let code, let message) = apiError else {
+                XCTFail("Expected FlickrAPIError.apiError, got \(type(of: error)): \(error)")
+                return
+            }
+            print("✅ Invalid key correctly yielded .apiError(code: \(code), message: \"\(message)\")")
         }
     }
 

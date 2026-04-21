@@ -40,7 +40,7 @@ struct FlickrAPIRepository {
                 return
             }
             do {
-                let photosResponse = try JSONDecoder().decode(FlickrPhotosResponse.self, from: data)
+                let photosResponse: FlickrPhotosResponse = try decodeFlickrJSON(data)
                 completion(.success(photosResponse.photos.photo))
             } catch {
                 completion(.failure(error))
@@ -252,7 +252,7 @@ struct FlickrAPIRepository {
                 completion(.failure(FlickrAPIError.networkError)); return
             }
             do {
-                completion(.success(try JSONDecoder().decode(FlickrInfoResponse.self, from: data)))
+                completion(.success(try decodeFlickrJSON(data)))
             } catch {
                 completion(.failure(error))
             }
@@ -280,7 +280,7 @@ struct FlickrAPIRepository {
                 completion(.failure(FlickrAPIError.networkError)); return
             }
             do {
-                let commentsResponse = try JSONDecoder().decode(FlickrCommentsResponse.self, from: data)
+                let commentsResponse: FlickrCommentsResponse = try decodeFlickrJSON(data)
                 let comments = commentsResponse.comments.comment?.map { $0.content } ?? []
                 completion(.success(comments))
             } catch {
@@ -290,6 +290,20 @@ struct FlickrAPIRepository {
     }
 
     // MARK: - Private helpers
+
+    /// Decodes `data` into `T`, but first checks for a Flickr API-level error envelope
+    /// (`{"stat":"fail","code":...,"message":...}`). Flickr always returns HTTP 200 for
+    /// API errors, so this must be checked before the real decode.
+    private func decodeFlickrJSON<T: Decodable>(_ data: Data) throws -> T {
+        if let envelope = try? JSONDecoder().decode(FlickrErrorEnvelope.self, from: data),
+           envelope.stat == "fail" {
+            throw FlickrAPIError.apiError(
+                code: envelope.code ?? -1,
+                message: envelope.message ?? "Unknown error"
+            )
+        }
+        return try JSONDecoder().decode(T.self, from: data)
+    }
 
     private func generateURL(urlString: String, queryParams: [String: String]? = nil) -> URL? {
         guard let url = URL(string: urlString) else { return nil }
@@ -304,4 +318,11 @@ struct FlickrAPIRepository {
         guard let http = response as? HTTPURLResponse else { return false }
         return (200..<300).contains(http.statusCode)
     }
+}
+
+// Minimal envelope used to detect Flickr API-level errors before attempting full decodes.
+private struct FlickrErrorEnvelope: Decodable {
+    let stat: String?
+    let code: Int?
+    let message: String?
 }

@@ -213,6 +213,26 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         wait(for: [expectation], timeout: 2)
     }
 
+    func testFlickrAPIStatFailReturnsAPIError() {
+        let expectation = expectation(description: "stat fail handled")
+        // Flickr returns HTTP 200 with this shape when the API key is invalid.
+        CapturingURLProtocol.stubbedData = Data("""
+        {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
+        """.utf8)
+
+        var receivedError: FlickrAPIError?
+        repository.getPhotos(
+            apiKey: "BADKEY",
+            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+    }
+
     func testGetInfoRequestContainsInfoMethod() {
         let expectation = expectation(description: "request sent")
         CapturingURLProtocol.stubbedData = Data("""
