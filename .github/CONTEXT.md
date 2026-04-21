@@ -50,6 +50,9 @@ methods directly.
 | `ASWebAuthenticationSession` retention | local var (deallocated before callback) | retained via `objc_setAssociatedObject` on context |
 | Redundant `getAccessToken` wrapper | present | removed (inlined to `repository.getAccessToken`) |
 | OAuth param sort | `localizedCaseInsensitiveCompare` (locale-sensitive) | `sorted()` (lexicographic, per spec) |
+| Percent-encoding | Inverted `CharacterSet` (allowed spaces, missed brackets) | RFC 3986 unreserved set — `alphanumerics ∪ "-._~"` only |
+| OAuth nonce | `UUID().uuidString` (contains hyphens) | hyphens stripped — alphanumeric only |
+| Encode helper duplication | `urlEncodedString` + `oauthEncodedString` (separate, inconsistent) | unified `rfc3986Encoded(_:)` private helper |
 | Test tearDown | missing | resets `CapturingURLProtocol` shared state |
 | Linux test artifacts | present | removed |
 | Unit tests | placeholder only | 17 tests across 5 suites |
@@ -138,7 +141,7 @@ AWFlickrServices/
 
 ---
 
-## Tests (17 passing)
+## Tests (18 passing)
 
 | Suite | Tests |
 |---|---|
@@ -146,7 +149,7 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 |
 | `FlickrPhotosRequestTests` | 1 |
 | `FlickrModelsDecodingTests` | 4 |
-| `FlickrAPIRepositoryURLBuildingTests` | 8 |
+| `FlickrAPIRepositoryURLBuildingTests` | 9 |
 
 Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
 
@@ -168,6 +171,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iP
 
 ```
 (v2 branch)
+f5d139a   fix: S6-S8 OAuth encoding — RFC 3986 percent-encoding, alphanumeric nonce, merge encode helpers
 81d421b   feat: S1-S5 audit fixes + cross-platform refactor (iOS + macOS)
 1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests
 2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown
