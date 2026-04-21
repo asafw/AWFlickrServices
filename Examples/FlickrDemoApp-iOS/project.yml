@@ -1,0 +1,32 @@
+name: FlickrDemoApp-iOS
+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+
+# Local reference to the AWFlickrServices package (two levels up from this file)
+packages:
+  AWFlickrServices:
+    path: ../..
+
+targets:
+  FlickrDemoApp-iOS:
+    type: application
+    platform: iOS
+    # Share source files with the macOS SPM executable target — no duplication.
+    sources:
+      - path: ../FlickrDemoApp
+    dependencies:
+      - package: AWFlickrServices
+        product: AWFlickrServices
+    settings:
+      base:
+        SWIFT_VERSION: 5.9
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.flickrdemo
+        PRODUCT_NAME: Flickr Demo
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        TARGETED_DEVICE_FAMILY: "1"

@@ -13,87 +13,109 @@ struct PhotoDetailView: View {
     @State private var comments: [String] = []
     @State private var isLoadingInfo = true
 
+    /// nil on macOS — treated as non-compact, giving the HStack layout.
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
     private struct Service: FlickrPhotosProtocol { }
     private let service = Service()
 
     var body: some View {
-        HStack(alignment: .top, spacing: 16) {
-            // Large photo
+        ScrollView {
             Group {
-                if let data = imageData, let nsImage = NSImage(data: data) {
-                    Image(nsImage: nsImage)
-                        .resizable()
-                        .scaledToFit()
-                } else {
-                    Rectangle()
-                        .foregroundStyle(.quaternary)
-                        .overlay { ProgressView() }
-                }
-            }
-            .frame(maxWidth: 500, maxHeight: 500)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // Metadata sidebar
-            VStack(alignment: .leading, spacing: 12) {
-                Text(photo.title)
-                    .font(.title2)
-                    .bold()
-
-                if isLoadingInfo {
-                    ProgressView("Loading info…")
-                } else {
-                    if let info {
-                        InfoRow(label: "By", value: info.photo.owner.realname)
-                        InfoRow(label: "Taken", value: info.photo.dates.taken)
-                        InfoRow(label: "Views", value: info.photo.views)
-                        if let location = info.photo.owner.location, !location.isEmpty {
-                            InfoRow(label: "Location", value: location)
-                        }
+                if sizeClass == .compact {
+                    // iPhone portrait — stack photo above metadata
+                    VStack(alignment: .leading, spacing: 16) {
+                        photoArea.frame(maxHeight: 300)
+                        metadataArea
                     }
-
-                    if !comments.isEmpty {
-                        Divider()
-                        Text("Comments").font(.headline)
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 6) {
-                                ForEach(comments.indices, id: \.self) { i in
-                                    Text(comments[i])
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                        .frame(maxHeight: 200)
+                } else {
+                    // macOS / iPad — photo left, metadata sidebar right
+                    HStack(alignment: .top, spacing: 16) {
+                        photoArea.frame(maxWidth: 500, maxHeight: 500)
+                        metadataArea.frame(width: 220)
                     }
                 }
-                Spacer()
             }
-            .frame(width: 220)
-            .padding(.top, 4)
+            .padding()
         }
-        .padding()
         .navigationTitle(photo.title)
+        #if os(iOS)
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
         .task { await loadAll() }
+    }
+
+    // MARK: - Sub-views
+
+    @ViewBuilder
+    private var photoArea: some View {
+        Group {
+            if let data = imageData, let image = PlatformImage(data: data) {
+                Image(platformImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                Rectangle()
+                    .foregroundStyle(.quaternary)
+                    .overlay { ProgressView() }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+
+    @ViewBuilder
+    private var metadataArea: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(photo.title)
+                .font(.title2)
+                .bold()
+
+            if isLoadingInfo {
+                ProgressView("Loading info…")
+            } else {
+                if let info {
+                    InfoRow(label: "By", value: info.photo.owner.realname)
+                    InfoRow(label: "Taken", value: info.photo.dates.taken)
+                    InfoRow(label: "Views", value: info.photo.views)
+                    if let location = info.photo.owner.location, !location.isEmpty {
+                        InfoRow(label: "Location", value: location)
+                    }
+                }
+
+                if !comments.isEmpty {
+                    Divider()
+                    Text("Comments").font(.headline)
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(comments.indices, id: \.self) { i in
+                            Text(comments[i])
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Info row
 
-private struct InfoRow: View {
-    let label: String
-    let value: String
-    var body: some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .foregroundStyle(.secondary)
-                .frame(width: 60, alignment: .leading)
-            Text(value)
+    private struct InfoRow: View {
+        let label: String
+        let value: String
+        var body: some View {
+            HStack(alignment: .top) {
+                Text(label)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 60, alignment: .leading)
+                Text(value)
+            }
+            .font(.caption)
         }
-        .font(.caption)
     }
-}
+
+    // MARK: - Data loading
 
     private func loadAll() async {
-        // Large photo
         if let url = URL(string: photo.largePhotoURLString()) {
             service.downloadImageData(from: url) { result in
                 if case .success(let data) = result {
@@ -102,11 +124,11 @@ private struct InfoRow: View {
             }
         }
 
-        // Info + comments (concurrent, both fire-and-forget)
         let infoRequest = FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
         service.getInfo(apiKey: apiKey, infoRequest: infoRequest) { result in
-            if case .success(let fetched) = result {
-                DispatchQueue.main.async { info = fetched }
+            DispatchQueue.main.async {
+                isLoadingInfo = false
+                if case .success(let fetched) = result { info = fetched }
             }
         }
 
@@ -116,7 +138,5 @@ private struct InfoRow: View {
                 DispatchQueue.main.async { comments = fetched }
             }
         }
-
-        DispatchQueue.main.async { isLoadingInfo = false }
     }
 }

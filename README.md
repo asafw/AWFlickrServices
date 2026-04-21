@@ -210,30 +210,52 @@ comment(
 
 ## Demo App
 
-A runnable macOS demo app is included under `Examples/FlickrDemoApp/`. It demonstrates
-`FlickrPhotosProtocol` — searching for photos, lazy-loading thumbnails, and fetching
-photo info and comments — without writing any UIKit or AppKit code.
+A demo app included under `Examples/` demonstrates `FlickrPhotosProtocol` — searching
+for photos, lazy-loading thumbnails, and fetching photo info and comments — without
+writing any UIKit or AppKit code. The same SwiftUI source files run on both macOS and iOS.
 
 ### Requirements
 
-- macOS 12+
-- Xcode 16+ (or Swift 5.9 CLI tools)
+- macOS 12+ or iOS 16+
+- Xcode 16+ (or Swift 5.9 CLI tools for the macOS version)
 - A [Flickr API key](https://www.flickr.com/services/api/misc.api_keys.html)
 
-### Running the demo
+### Running on macOS
 
 ```bash
-# Option 1 – environment variable (no files left on disk)
+# Option 1 — environment variable (no files left on disk)
 FLICKR_API_KEY=your_api_key swift run FlickrDemoApp
 
-# Option 2 – credential file (persists across runs)
+# Option 2 — credential file
 echo "your_api_key" > /tmp/flickr_api_key
 swift run FlickrDemoApp
 ```
 
 Run both commands from the package root (`AWFlickrServices/` directory).
-The window will appear automatically and the search field will be focused.
+The window appears automatically and the search field accepts keyboard input right away.
 
 > **Note:** `swift run` does not give the process foreground focus by default on macOS.
-> The demo handles this automatically via `NSApp.activate(ignoringOtherApps: true)`,
-> so the search field responds to keyboard input immediately without needing to click first.
+> The demo calls `NSApp.activate(ignoringOtherApps: true)` in `.onAppear` so the
+> search field responds to keyboard input immediately without needing to click first.
+
+### Running on iOS Simulator
+
+```bash
+# 1. Generate the Xcode project (only needed once, or after editing project.yml)
+cd Examples/FlickrDemoApp-iOS
+xcodegen generate
+
+# 2. Open in Xcode
+open FlickrDemoApp-iOS.xcodeproj
+```
+
+In Xcode:
+1. Select the **FlickrDemoApp-iOS** scheme and an iPhone simulator.
+2. Open **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**
+   and add `FLICKR_API_KEY` = `your_api_key`.
+3. Press **⌘R** to build and run.
+
+Alternatively, if you skip step 2, an **API Key** field appears at the top of the
+app on first launch — paste your key there.
+
+Layout adapts automatically: VStack on iPhone, HStack sidebar on iPad/macOS.
