@@ -73,16 +73,18 @@ AWFlickrServices/
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI source files (macOS + iOS)
 │   ├── FlickrDemoApp.swift           ← @main App; NSApp.activate on macOS via #if canImport(AppKit)
-│   ├── DemoViewModel.swift           ← ObservableObject; conforms to FlickrPhotosProtocol
+│   ├── DemoViewModel.swift           ← ObservableObject; conforms to FlickrPhotosProtocol + FlickrOAuthProtocol
 │   ├── ContentView.swift             ← NavigationStack (13+) / NavigationView (12) + API key field
+│   ├── AuthView.swift                ← OAuth sign-in/sign-out panel with API secret SecureField
 │   ├── PhotoGridView.swift           ← LazyVGrid thumbnails; PlatformImage cross-platform alias
-│   ├── PhotoDetailView.swift         ← HStack/VStack adaptive via horizontalSizeClass; PlatformImage
-│   └── PlatformImage.swift           ← typealias PlatformImage = NSImage/UIImage + Image(platformImage:)
+│   ├── PhotoDetailView.swift         ← HStack/VStack adaptive via horizontalSizeClass; @State actionError shows fave/comment failures
+│   ├── PlatformImage.swift           ← typealias PlatformImage = NSImage/UIImage + Image(platformImage:)
+│   └── PresentationContext.swift     ← ASWebAuthenticationPresentationContextProviding; iOS uses UIWindowScene.keyWindow (iOS 15+)
 ├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 16+); reuses FlickrDemoApp/ sources
 │   ├── project.yml                   ← XcodeGen spec; run `xcodegen generate` to create .xcodeproj
 │   └── .gitignore                    ← ignores the generated .xcodeproj
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 51 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 55 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets
@@ -142,7 +144,7 @@ AWFlickrServices/
 
 ## Tests
 
-### Unit tests — 51 passing
+### Unit tests — 55 passing
 
 | Suite | Count | What it covers |
 |---|---|---|
@@ -150,7 +152,7 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 | thumbnail / large URL format |
 | `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
 | `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
-| `FlickrAPIRepositoryURLBuildingTests` | 21 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, oauth_signature present |
+| `FlickrAPIRepositoryURLBuildingTests` | 25 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success (.success(())), downloadImageData HTTP error, oauth_signature present |
 | `FlickrAPIRepositoryOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret (both getAccessToken and getRequestToken), A13 stat:fail on fave |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
@@ -229,6 +231,11 @@ Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone)
 ## Commit history (latest 8)
 
 ```
+fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
+fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
+97643d9  feat(examples): iOS demo app — cross-platform source files, NavigationStack/View #available, XcodeGen project
+40fd275  feat(examples): add OAuth flow, fave/unfave/comment to demo — full API coverage
+c81b0a3  docs(context): sync after cross-platform + iOS demo build
 1b7098a  docs: add FlickrDemoApp launch instructions to README and CONTEXT
 90a8cd1  fix(demo): activate app on appear so TextField responds to keyboard input
 cf5ab69  feat(examples): add FlickrDemoApp SPM target — SwiftUI macOS demo of search, thumbnails, photo detail, getInfo, getComments

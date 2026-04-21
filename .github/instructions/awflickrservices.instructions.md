@@ -37,7 +37,7 @@ AWFlickrServices/
 │   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString are internal
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 51 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 55 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets (AWFlickrServices, AWFlickrServicesTests, AWFlickrServicesIntegrationTests, FlickrDemoApp)
