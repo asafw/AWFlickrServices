@@ -37,7 +37,7 @@ AWFlickrServices/
 │   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString are internal
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 44 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 46 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 3 targets
@@ -112,8 +112,9 @@ callback fires.
   `@escaping (Result<T, Error>) -> Void`. Callbacks fire on the URLSession
   background queue. Callers must dispatch to the main queue for UI updates.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks for `{"stat":"fail",...}` before
-  attempting the real type decode, and throws `FlickrAPIError.apiError(code:message:)`.
-  This must be applied to every method that decodes JSON from the Flickr REST API.
+  attempting the real type decode and throws `FlickrAPIError.apiError(code:message:)`.
+  `checkFlickrError(_:)` does the same for void-returning POST endpoints (`fave`, `unfave`, `comment`).
+  Both must be applied to all Flickr REST API responses.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`.
   For the request-token step, `oauthTokenSecret` is empty (`""`), so the key
   is `"apiSecret&"`. This is correct per the OAuth 1.0a spec.
@@ -158,7 +159,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" test
 
 ## Session end checklist
 
-1. Run unit tests — all 44 must pass.
+1. Run unit tests — all 46 must pass.
 2. Update `.github/CONTEXT.md`: latest commit hash, test counts, any changed APIs.
 3. Update this file if architecture, conventions, or type descriptions changed.
 4. Commit both together:

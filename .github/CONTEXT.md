@@ -49,7 +49,10 @@ Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol`
 | OAuth nonce | UUID with hyphens | hyphens stripped — alphanumeric only |
 | Encode helper | `urlEncodedString` + `oauthEncodedString` (separate, inconsistent) | unified `rfc3986Encoded(_:)` |
 | `rfc3986Encoded` / `hmacsha1EncryptedString` visibility | `private` | `internal` (testable) |
-| Unit tests | placeholder only | 44 tests across 8 suites |
+| Key-value OAuth response parser | `components(separatedBy:"=")` silently drops values with `=` | splits on first `=` only via `range(of:)` (A9) |
+| `fave`/`unfave`/`comment` on stat:fail 200 | silently returned `.success(())` | calls `checkFlickrError`, throws `.apiError` (A13) |
+| `callbackURLScheme` in `ASWebAuthenticationSession` | full URL string (broke matching on some OS versions) | extracts scheme via `URL(string:)?.scheme` (A14) |
+| Unit tests | placeholder only | 46 tests across 8 suites |
 | Integration tests | none | 16 live tests (2 suites) — skip without credentials |
 | CI | none | GitHub Actions `ios.yml` |
 
@@ -69,7 +72,7 @@ AWFlickrServices/
 │   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString internal
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 44 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 46 unit tests (8 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
 ├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 3 targets
@@ -118,7 +121,7 @@ AWFlickrServices/
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
 - **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
 - **Completion-handler API** — `@escaping (Result<T, Error>) -> Void`. Callbacks on URLSession background queue.
-- **`stat:fail` detection** — `decodeFlickrJSON<T>` in `FlickrAPIRepository` checks for `{"stat":"fail",...}` before decoding; throws `.apiError(code:message:)`.
+- **`stat:fail` detection** — `decodeFlickrJSON<T>` checks stat:fail for GET/decode endpoints; `checkFlickrError(_:)` checks stat:fail for void POST endpoints (`fave`, `unfave`, `comment`). Both throw `.apiError(code:message:)`.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`. Request-token step uses `"apiSecret&"` (empty token secret).
 - **RFC 3986 percent-encoding** — unified `rfc3986Encoded(_:)` helper; `alphanumerics ∪ "-._~"` only.
 - **Alphanumeric nonce** — `UUID().uuidString.replacingOccurrences(of: "-", with: "")`.
@@ -129,7 +132,7 @@ AWFlickrServices/
 
 ## Tests
 
-### Unit tests — 44 passing
+### Unit tests — 46 passing
 
 | Suite | Count | What it covers |
 |---|---|---|
@@ -137,8 +140,8 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 | thumbnail / large URL format |
 | `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
 | `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
-| `FlickrAPIRepositoryURLBuildingTests` | 15 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError, oauth_signature present |
-| `FlickrAPIRepositoryOAuthParsingTests` | 4 | request/access token key-value parsing, HTTP error paths |
+| `FlickrAPIRepositoryURLBuildingTests` | 16 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError (getPhotos + fave), oauth_signature present |
+| `FlickrAPIRepositoryOAuthParsingTests` | 6 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret, A13 stat:fail on fave |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
 
@@ -183,14 +186,14 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:
 ## Commit history (latest 8)
 
 ```
+c57a07d  fix: A9 key-value parser splits on first = only, A13 stat:fail on POST endpoints, A14 callbackURLScheme extracts scheme
+ee81f4c  docs(context): sync CONTEXT.md and instructions after session — 44 unit tests, 16 integration tests, apiError, OAuthUtilitiesTests
 f91b83d  test: OAuth 1.0a coverage — RFC 2202 HMAC-SHA1 vector, signing key format, all params, live getRequestToken + fave/unfave tests
 3f2ef8c  fix: detect Flickr stat:fail 200-responses as FlickrAPIError.apiError, add unit + integration test
 6218989  test(integration): add 9 new live tests — per_page, pagination, spaces, invalid key, page clamp, large URL, JPEG magic bytes, views numeric, concurrency
 55f1ade  fix(integration-tests): add /tmp/flickr_api_key file fallback for xcodebuild sandboxed runner
 c40a7f6  feat: add AWFlickrServicesIntegrationTests target — live Flickr API sanity checks
 a3aa13f  docs(context): sync after coverage improvements (34 tests)
-a55838f  test: coverage improvements — decoded results, OAuth parsing, oauth_signature, RFC 3986 edge cases
-bf87515  docs(context): fix stale CONTEXT.md (remove v1 duplicate, fix test counts, API names)
 ```
 
 ---
