@@ -18,7 +18,17 @@
 import XCTest
 @testable import AWFlickrServices
 
-private let apiKey: String? = ProcessInfo.processInfo.environment["FLICKR_API_KEY"]
+private let apiKey: String? = {
+    // 1. Shell env var (works for swift test on macOS CLI)
+    if let v = ProcessInfo.processInfo.environment["FLICKR_API_KEY"], !v.isEmpty { return v }
+    // 2. Temp file — write key here to unblock xcodebuild's sandboxed test runner:
+    //    echo "your_key" > /tmp/flickr_api_key
+    if let v = try? String(contentsOfFile: "/tmp/flickr_api_key", encoding: .utf8) {
+        let trimmed = v.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+    }
+    return nil
+}()
 
 final class FlickrSearchIntegrationTests: XCTestCase {
 
