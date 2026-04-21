@@ -291,4 +291,20 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         XCTAssertTrue(url.contains("flickr.photos.comments.addComment"), "URL should contain addComment method, got: \(url)")
         XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
     }
+
+    func testCommentTextWithSpacesIsRFC3986Encoded() {
+        let expectation = expectation(description: "request sent")
+
+        repository.comment(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            commentRequest: FlickrCommentRequest(photo_id: "444", comment_text: "great photo!")
+        ) { _ in expectation.fulfill() }
+
+        wait(for: [expectation], timeout: 2)
+        let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
+        XCTAssertFalse(url.contains("great photo!"), "Space must be percent-encoded, not passed raw")
+        XCTAssertTrue(url.contains("great%20photo") || url.contains("great+photo") == false,
+                      "Space should be %20-encoded per RFC 3986, got: \(url)")
+    }
 }

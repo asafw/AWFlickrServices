@@ -129,7 +129,7 @@ private func getParameters(
     commentText: String? = nil
 ) -> [String: String] {
     let timestamp = String(Int(floor(Date().timeIntervalSince1970)))
-    let nonce = UUID().uuidString
+    let nonce = UUID().uuidString.replacingOccurrences(of: "-", with: "")
     var parameters: [String: String] = [
         "oauth_nonce": nonce,
         "oauth_timestamp": timestamp,
@@ -163,14 +163,12 @@ private func sortedURLString(url: String, parameters: [String: String], urlEscap
     return urlString
 }
 
-private func urlEncodedString(string: String) -> String {
-    let allowed = CharacterSet(charactersIn: "% /'\"?=&+<>;:!").inverted
-    return string.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
-}
+private func urlEncodedString(string: String) -> String { rfc3986Encoded(string) }
+private func oauthEncodedString(string: String) -> String { rfc3986Encoded(string) }
 
-private func oauthEncodedString(string: String) -> String {
-    let allowed = CharacterSet(charactersIn: "%:/?#[]@!$&'()*+,;=").inverted
-    return string.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
+private func rfc3986Encoded(_ string: String) -> String {
+    let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+    return string.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
 }
 
 private func hmacsha1EncryptedString(string: String, key: String) -> String {
