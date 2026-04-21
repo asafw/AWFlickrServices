@@ -7,8 +7,201 @@
 
 ## Current branch: `v2` (active development)
 
-`master` = v1.0.0 (original, frozen — kept for existing consumers)
-`v2` = modernised v2.0.0 work in progress — all Phase 1 & 2 improvements applied
+`master` = v1.0.0 (original, frozen — kept for existing consumers)  
+`v2` = modernised v2.0.0 work in progress — all Phase 1–3 improvements applied
+
+---
+
+## Overview
+
+A dependency-free Swift Package (SPM) for integrating the Flickr API in iOS and macOS apps.
+Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol` or
+`FlickrPhotosProtocol` and gain full API access through protocol extension default implementations.
+
+- **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
+- **v1.0.0:** `master` branch — original 2020 code, frozen
+- **v2.0.0 (WIP):** `v2` branch — modernised, tested, iOS 16+ and macOS 12+
+
+---
+
+## What changed in v2
+
+| Area | v1 | v2 |
+|---|---|---|
+| `swift-tools-version` | 5.2 | 5.9 |
+| iOS minimum | 13 | 16 |
+| macOS support | none | 12+ |
+| `UIKit` dependency | yes (`UIImage`) | removed — `downloadImageData` returns `Data` |
+| `FlickrEndpoints` | `struct` with `let` | caseless `enum` with `static let` |
+| NS legacy types | `NSDate`, `NSUUID` etc | pure Swift types |
+| `URLSession` | hardcoded `.shared` | injected via `FlickrAPIRepository.init(session:)` |
+| HTTP validation | none | `validateHTTPResponse` checks 200–299 |
+| Image caching | unreliable | `returnCacheDataElseLoad` |
+| `Comment._content` | leading-underscore property | `CodingKeys` mapping → `content` |
+| `FlickrPhotosRequest.page`/`per_page` | `String` | `Int` (breaking change) |
+| `Sendable` | — | all public structs conform |
+| `FlickrAPIError` | `Error` | `Error, Equatable`; `.apiError(code:message:)` added; dead cases removed |
+| Flickr `stat:fail` 200 responses | silent DecodingError | detected via `FlickrErrorEnvelope`, thrown as `.apiError` |
+| `FlickrOAuthProtocol` context param | `UIViewController` | `ASWebAuthenticationPresentationContextProviding` |
+| `ASWebAuthenticationSession` retention | local var (leaked) | `objc_setAssociatedObject` on context |
+| OAuth param sort | locale-sensitive | `sorted()` — lexicographic per spec |
+| Percent-encoding | inverted `CharacterSet` (wrong) | RFC 3986 `alphanumerics ∪ "-._~"` |
+| OAuth nonce | UUID with hyphens | hyphens stripped — alphanumeric only |
+| Encode helper | `urlEncodedString` + `oauthEncodedString` (separate, inconsistent) | unified `rfc3986Encoded(_:)` |
+| `rfc3986Encoded` / `hmacsha1EncryptedString` visibility | `private` | `internal` (testable) |
+| Unit tests | placeholder only | 44 tests across 8 suites |
+| Integration tests | none | 16 live tests (2 suites) — skip without credentials |
+| CI | none | GitHub Actions `ios.yml` |
+
+---
+
+## Repository layout
+
+```
+AWFlickrServices/
+├── Sources/AWFlickrServices/
+│   ├── FlickrAPIError.swift          ← Public error enum (parsingError, networkError, apiError)
+│   ├── FlickrAPIRepository.swift     ← Internal HTTP layer; decodeFlickrJSON checks stat:fail
+│   ├── FlickrEndpoints.swift         ← Internal caseless enum of URL / method constants
+│   ├── FlickrModels.swift            ← Public request & response models (Sendable)
+│   ├── FlickrOAuthModels.swift       ← OAuth token models (partially public)
+│   ├── FlickrOAuthProtocol.swift     ← Public OAuth protocol + default impl
+│   ├── FlickrOAuthUtilities.swift    ← HMAC-SHA1 signing; rfc3986Encoded + hmacsha1EncryptedString internal
+│   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
+├── Tests/AWFlickrServicesTests/
+│   └── AWFlickrServicesTests.swift   ← 44 unit tests (8 suites, CapturingURLProtocol stub)
+├── Tests/AWFlickrServicesIntegrationTests/
+│   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
+├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 3 targets
+├── README.md
+├── AGENTS.md
+└── .github/
+    ├── CONTEXT.md
+    ├── instructions/awflickrservices.instructions.md
+    └── workflows/ios.yml
+```
+
+---
+
+## Public API surface
+
+### FlickrPhotosProtocol methods
+
+| Method | OAuth required | Return type |
+|---|---|---|
+| `getPhotos(apiKey:photosRequest:completion:)` | No | `[FlickrPhoto]` |
+| `downloadImageData(from:completion:)` | No | `Data` (`returnCacheDataElseLoad`) |
+| `getInfo(apiKey:infoRequest:completion:)` | No | `FlickrInfoResponse` |
+| `getComments(apiKey:commentsRequest:completion:)` | No | `[String]` |
+| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:completion:)` | Yes | `Void` |
+| `unfave(...)` | Yes | `Void` |
+| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:completion:)` | Yes | `Void` |
+
+### Public models
+
+| Type | Key fields / notes |
+|---|---|
+| `FlickrPhoto` | `id`, `secret`, `title`, `farm`, `server`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` |
+| `FlickrFaveRequest` | `photo_id: String` |
+| `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
+| `FlickrInfoRequest` | `photo_id: String`, `secret: String` |
+| `FlickrInfoResponse` | `.photo: PhotoInfo` → `.owner: Owner` (realname, location?), `.dates: Dates` (taken), `.views: String` |
+| `FlickrCommentsRequest` | `photo_id: String` |
+| `AccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
+| `FlickrAPIError` | `.parsingError`, `.networkError`, `.apiError(code: Int, message: String)` |
+
+---
+
+## Architecture invariants
+
+- **Zero external dependencies** — `Package.swift` must stay dependency-free.
+- **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
+- **Completion-handler API** — `@escaping (Result<T, Error>) -> Void`. Callbacks on URLSession background queue.
+- **`stat:fail` detection** — `decodeFlickrJSON<T>` in `FlickrAPIRepository` checks for `{"stat":"fail",...}` before decoding; throws `.apiError(code:message:)`.
+- **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`. Request-token step uses `"apiSecret&"` (empty token secret).
+- **RFC 3986 percent-encoding** — unified `rfc3986Encoded(_:)` helper; `alphanumerics ∪ "-._~"` only.
+- **Alphanumeric nonce** — `UUID().uuidString.replacingOccurrences(of: "-", with: "")`.
+- **`rfc3986Encoded` and `hmacsha1EncryptedString` are `internal`** — exposed for unit testing; do not make `public`.
+- **`Comment.content`** — Flickr JSON `_content` mapped via `CodingKeys`. Do not revert to `_content`.
+
+---
+
+## Tests
+
+### Unit tests — 44 passing
+
+| Suite | Count | What it covers |
+|---|---|---|
+| `FlickrEndpointsTests` | 2 | host URL, URL template suffixes |
+| `FlickrPhotoTests` | 2 | thumbnail / large URL format |
+| `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
+| `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
+| `FlickrAPIRepositoryURLBuildingTests` | 15 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError, oauth_signature present |
+| `FlickrAPIRepositoryOAuthParsingTests` | 4 | request/access token key-value parsing, HTTP error paths |
+| `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
+| `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
+
+Run unit tests:
+```bash
+xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
+```
+
+### Integration tests — 16 total (skip gracefully without credentials)
+
+**`FlickrSearchIntegrationTests` (14 tests)** — require `FLICKR_API_KEY` / `/tmp/flickr_api_key`:
+per_page count, pagination distinct IDs, spaces in search term, invalid key → apiError,
+page-beyond-total no error, farm thumbnail resolves, large URL resolves, JPEG magic bytes,
+getInfo decodes, views numeric, getComments decodes, concurrent searches, farm CDN canary.
+
+**`FlickrOAuthIntegrationTests` (2 tests)** — require `FLICKR_API_SECRET` / `/tmp/flickr_api_secret`:
+- `testGetRequestTokenSigningIsAcceptedByFlickr` — proves entire signing chain (HMAC-SHA1, key format, nonce, encoding) by getting Flickr to accept the signed request
+- `testFaveAndUnfaveRoundTrip` — also requires `/tmp/flickr_oauth_token` + `/tmp/flickr_oauth_token_secret`
+
+Run integration tests:
+```bash
+echo "your_secret" > /tmp/flickr_api_secret   # for OAuth tests
+xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
+```
+
+---
+
+## Build and test
+
+```bash
+cd ~/Desktop/asafw/AWFlickrServices
+# Unit tests (fast, no network)
+xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
+# Integration tests (live network — requires /tmp/flickr_api_key)
+xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
+```
+
+> `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
+
+---
+
+## Commit history (latest 8)
+
+```
+f91b83d  test: OAuth 1.0a coverage — RFC 2202 HMAC-SHA1 vector, signing key format, all params, live getRequestToken + fave/unfave tests
+3f2ef8c  fix: detect Flickr stat:fail 200-responses as FlickrAPIError.apiError, add unit + integration test
+6218989  test(integration): add 9 new live tests — per_page, pagination, spaces, invalid key, page clamp, large URL, JPEG magic bytes, views numeric, concurrency
+55f1ade  fix(integration-tests): add /tmp/flickr_api_key file fallback for xcodebuild sandboxed runner
+c40a7f6  feat: add AWFlickrServicesIntegrationTests target — live Flickr API sanity checks
+a3aa13f  docs(context): sync after coverage improvements (34 tests)
+a55838f  test: coverage improvements — decoded results, OAuth parsing, oauth_signature, RFC 3986 edge cases
+bf87515  docs(context): fix stale CONTEXT.md (remove v1 duplicate, fix test counts, API names)
+```
+
+---
+
+## Remaining work (Phase 3–4, future)
+
+- Phase 3: `FlickrAPIRepository` injection via protocol (currently instantiated per-method-call in the protocol extensions)
+- Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
+- Phase 4: `FlickrService` class wrapper for SwiftUI consumers
+- Tag `2.0.0` and merge `v2` → `master` when Phase 3–4 are complete
+
 
 ---
 
