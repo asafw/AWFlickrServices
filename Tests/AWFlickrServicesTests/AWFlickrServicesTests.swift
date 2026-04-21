@@ -520,6 +520,82 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("oauth_signature="), "Signed URL must contain oauth_signature, got: \(url)")
     }
+
+    // B1 – fave 200 OK with {"stat":"ok"} must call back with .success(())
+    func testFaveSuccessReturnsVoid() {
+        let expectation = expectation(description: "fave success")
+        CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
+
+        var succeeded = false
+        repository.fave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "123")
+        ) { result in
+            if case .success = result { succeeded = true }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertTrue(succeeded, "fave with HTTP 200 + stat:ok must call back with .success(())")
+    }
+
+    // B2 – unfave 200 OK with {"stat":"ok"} must call back with .success(())
+    func testUnfaveSuccessReturnsVoid() {
+        let expectation = expectation(description: "unfave success")
+        CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
+
+        var succeeded = false
+        repository.unfave(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            faveRequest: FlickrFaveRequest(photo_id: "123")
+        ) { result in
+            if case .success = result { succeeded = true }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertTrue(succeeded, "unfave with HTTP 200 + stat:ok must call back with .success(())")
+    }
+
+    // B3 – comment 200 OK with {"stat":"ok"} must call back with .success(())
+    func testCommentSuccessReturnsVoid() {
+        let expectation = expectation(description: "comment success")
+        CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
+
+        var succeeded = false
+        repository.comment(
+            apiKey: "KEY", apiSecret: "SECRET",
+            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+            commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice shot!")
+        ) { result in
+            if case .success = result { succeeded = true }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertTrue(succeeded, "comment with HTTP 200 + stat:ok must call back with .success(())")
+    }
+
+    // B4 – downloadImageData with non-200 HTTP status must return .networkError
+    func testDownloadImageDataHTTPErrorReturnsNetworkError() {
+        let expectation = expectation(description: "download HTTP error")
+        CapturingURLProtocol.stubbedStatusCode = 403
+        CapturingURLProtocol.stubbedData = Data()
+
+        var receivedError: FlickrAPIError?
+        repository.downloadImageData(
+            from: URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
+        ) { result in
+            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
+            expectation.fulfill()
+        }
+
+        wait(for: [expectation], timeout: 2)
+        XCTAssertEqual(receivedError, .networkError,
+            "downloadImageData with HTTP 403 must return .networkError")
+    }
 }
 
 // MARK: - FlickrAPIRepository OAuth response parsing

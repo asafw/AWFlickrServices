@@ -22,6 +22,9 @@ struct PhotoDetailView: View {
     @State private var newComment: String = ""
     @State private var isPostingComment: Bool = false
 
+    // Action error (fave/unfave/comment failures)
+    @State private var actionError: String? = nil
+
     /// nil on macOS — treated as non-compact, giving the HStack layout.
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -138,6 +141,12 @@ struct PhotoDetailView: View {
                 if isPostingComment {
                     ProgressView("Posting…")
                 }
+
+                if let actionError {
+                    Text(actionError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
         }
     }
@@ -189,6 +198,7 @@ struct PhotoDetailView: View {
 
     private func toggleFave() {
         isFaving = true
+        actionError = nil
         let request = FlickrFaveRequest(photo_id: photo.id)
         if isFaved {
             service.unfave(
@@ -200,7 +210,10 @@ struct PhotoDetailView: View {
             ) { result in
                 DispatchQueue.main.async {
                     isFaving = false
-                    if case .success = result { isFaved = false }
+                    switch result {
+                    case .success: isFaved = false
+                    case .failure(let error): actionError = error.localizedDescription
+                    }
                 }
             }
         } else {
@@ -213,7 +226,10 @@ struct PhotoDetailView: View {
             ) { result in
                 DispatchQueue.main.async {
                     isFaving = false
-                    if case .success = result { isFaved = true }
+                    switch result {
+                    case .success: isFaved = true
+                    case .failure(let error): actionError = error.localizedDescription
+                    }
                 }
             }
         }
@@ -225,6 +241,7 @@ struct PhotoDetailView: View {
         let text = newComment.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
         isPostingComment = true
+        actionError = nil
         let request = FlickrCommentRequest(photo_id: photo.id, comment_text: text)
         service.comment(
             apiKey: viewModel.apiKey,
@@ -235,9 +252,12 @@ struct PhotoDetailView: View {
         ) { result in
             DispatchQueue.main.async {
                 isPostingComment = false
-                if case .success = result {
+                switch result {
+                case .success:
                     comments.append(text)
                     newComment = ""
+                case .failure(let error):
+                    actionError = error.localizedDescription
                 }
             }
         }
