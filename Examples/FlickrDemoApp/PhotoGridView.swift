@@ -5,7 +5,7 @@ import AWFlickrServices
 
 struct PhotoGridView: View {
 
-    let photos: [FlickrPhoto]
+    let photos: [AWFlickrPhoto]
     @ObservedObject var viewModel: DemoViewModel
 
     private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160))]
@@ -36,7 +36,7 @@ private struct ThumbnailView: View {
 
     // FlickrPhotosProtocol conformance via extension on any type — we use a
     // lightweight struct here to demonstrate the mixin pattern directly.
-    private struct Loader: FlickrPhotosProtocol { }
+    private struct Loader: AWFlickrPhotosProtocol { }
     private let loader = Loader()
 
     var body: some View {

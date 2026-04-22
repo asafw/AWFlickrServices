@@ -6,11 +6,11 @@ import AWFlickrServices
 
 struct PhotoDetailView: View {
 
-    let photo: FlickrPhoto
+    let photo: AWFlickrPhoto
     @ObservedObject var viewModel: DemoViewModel
 
     @State private var imageData: Data? = nil
-    @State private var info: FlickrInfoResponse? = nil
+    @State private var info: AWFlickrInfoResponse? = nil
     @State private var comments: [String] = []
     @State private var isLoadingInfo = true
 
@@ -28,7 +28,7 @@ struct PhotoDetailView: View {
     /// nil on macOS — treated as non-compact, giving the HStack layout.
     @Environment(\.horizontalSizeClass) private var sizeClass
 
-    private struct Service: FlickrPhotosProtocol { }
+    private struct Service: AWFlickrPhotosProtocol { }
     private let service = Service()
 
     var body: some View {
@@ -185,13 +185,13 @@ struct PhotoDetailView: View {
             }
         }
 
-        let infoRequest = FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
+        let infoRequest = AWFlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
         if let fetched = try? await service.getInfo(apiKey: viewModel.apiKey, infoRequest: infoRequest) {
             isLoadingInfo = false
             info = fetched
         }
 
-        let commentsRequest = FlickrCommentsRequest(photo_id: photo.id)
+        let commentsRequest = AWFlickrCommentsRequest(photo_id: photo.id)
         if let fetched = try? await service.getComments(apiKey: viewModel.apiKey, commentsRequest: commentsRequest) {
             comments = fetched
         }
@@ -202,7 +202,7 @@ struct PhotoDetailView: View {
     private func toggleFave() {
         isFaving = true
         actionError = nil
-        let request = FlickrFaveRequest(photo_id: photo.id)
+        let request = AWFlickrFaveRequest(photo_id: photo.id)
         Task { @MainActor in
             do {
                 if isFaved {
@@ -238,7 +238,7 @@ struct PhotoDetailView: View {
         guard !text.isEmpty else { return }
         isPostingComment = true
         actionError = nil
-        let request = FlickrCommentRequest(photo_id: photo.id, comment_text: text)
+        let request = AWFlickrCommentRequest(photo_id: photo.id, comment_text: text)
         Task { @MainActor in
             do {
                 try await service.comment(

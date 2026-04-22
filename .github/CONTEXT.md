@@ -15,8 +15,8 @@
 ## Overview
 
 A dependency-free Swift Package (SPM) for integrating the Flickr API in iOS and macOS apps.
-Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol` or
-`FlickrPhotosProtocol` and gain full API access through protocol extension default implementations.
+Uses a **protocol mixin pattern** — consumers conform to `AWFlickrOAuthProtocol` or
+`AWFlickrPhotosProtocol` and gain full API access through protocol extension default implementations.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
 - **v1.0.0:** `master` branch — original 2020 code, frozen
@@ -40,9 +40,9 @@ Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol`
 | `Comment._content` | leading-underscore property | `CodingKeys` mapping → `content` |
 | `FlickrPhotosRequest.page`/`per_page` | `String` | `Int` (breaking change) |
 | `Sendable` | — | all public structs conform |
-| `FlickrAPIError` | `Error` | `Error, Equatable`; `.apiError(code:message:)` added; dead cases removed |
+| `FlickrAPIError` | `Error` | `Error, Equatable`; `.apiError(code:message:)` added; dead cases removed → **`AWFlickrAPIError`** |
 | Flickr `stat:fail` 200 responses | silent DecodingError | detected via `FlickrErrorEnvelope`, thrown as `.apiError` |
-| `FlickrOAuthProtocol` context param | `UIViewController` | `ASWebAuthenticationPresentationContextProviding` |
+| `FlickrOAuthProtocol` context param | `UIViewController` | `ASWebAuthenticationPresentationContextProviding` → **`AWFlickrOAuthProtocol`** |
 | `ASWebAuthenticationSession` retention | local var (leaked) | `objc_setAssociatedObject` on context |
 | OAuth param sort | locale-sensitive | `sorted()` — lexicographic per spec |
 | Percent-encoding | inverted `CharacterSet` (wrong) | RFC 3986 `alphanumerics ∪ "-._~"` |
@@ -74,7 +74,7 @@ AWFlickrServices/
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI source files (macOS + iOS)
 │   ├── FlickrDemoApp.swift           ← @main App; NSApp.activate on macOS via #if canImport(AppKit)
-│   ├── DemoViewModel.swift           ← ObservableObject; conforms to FlickrPhotosProtocol + FlickrOAuthProtocol
+│   ├── DemoViewModel.swift           ← ObservableObject; conforms to `AWFlickrPhotosProtocol` + `AWFlickrOAuthProtocol`
 │   ├── ContentView.swift             ← NavigationStack (13+) / NavigationView (12) + API key field
 │   ├── AuthView.swift                ← OAuth sign-in/sign-out panel with API secret SecureField
 │   ├── PhotoGridView.swift           ← LazyVGrid thumbnails; PlatformImage cross-platform alias
@@ -110,13 +110,13 @@ AWFlickrServices/
 
 ## Public API surface
 
-### FlickrPhotosProtocol methods (all `async throws`)
+### AWFlickrPhotosProtocol methods (all `async throws`)
 
 | Method | OAuth required | Return type |
 |---|---|---|
-| `getPhotos(apiKey:photosRequest:)` | No | `[FlickrPhoto]` |
+| `getPhotos(apiKey:photosRequest:)` | No | `[AWFlickrPhoto]` |
 | `downloadImageData(from:)` | No | `Data` (`returnCacheDataElseLoad`) |
-| `getInfo(apiKey:infoRequest:)` | No | `FlickrInfoResponse` |
+| `getInfo(apiKey:infoRequest:)` | No | `AWFlickrInfoResponse` |
 | `getComments(apiKey:commentsRequest:)` | No | `[String]` |
 | `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:)` | Yes | `Void` |
 | `unfave(...)` | Yes | `Void` |
@@ -126,21 +126,21 @@ AWFlickrServices/
 
 | Type | Key fields / notes |
 |---|---|
-| `FlickrPhoto` | `id`, `secret`, `title`, `farm`, `server`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
-| `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` |
-| `FlickrFaveRequest` | `photo_id: String` |
-| `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
-| `FlickrInfoRequest` | `photo_id: String`, `secret: String` |
-| `FlickrInfoResponse` | `.photo: PhotoInfo` → `.owner: Owner` (realname, location?), `.dates: Dates` (taken), `.views: String` |
-| `FlickrCommentsRequest` | `photo_id: String` |
-| `AccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
-| `FlickrAPIError` | `.parsingError`, `.networkError`, `.apiError(code: Int, message: String)` |
+| `AWFlickrPhoto` | `id`, `secret`, `title`, `farm`, `server`; `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `AWFlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` |
+| `AWFlickrFaveRequest` | `photo_id: String` |
+| `AWFlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
+| `AWFlickrInfoRequest` | `photo_id: String`, `secret: String` |
+| `AWFlickrInfoResponse` | `.photo: AWFlickrPhotoInfo` → `.owner: AWFlickrOwner` (realname, location?), `.dates: AWFlickrDates` (taken), `.views: String` |
+| `AWFlickrCommentsRequest` | `photo_id: String` |
+| `AWAccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
+| `AWFlickrAPIError` | `.parsingError`, `.networkError`, `.apiError(code: Int, message: String)` |
 
 ---
 
 ## Architecture invariants
 
-- **`urlSession` protocol requirement** — both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose `var urlSession: URLSession { get }` with a default of `URLSession.shared`. Protocol extension default implementations create `FlickrAPIService(session: urlSession)` — conforming types override only `urlSession` to inject a test or custom session without overriding every method.
+- **`urlSession` protocol requirement** — both `AWFlickrPhotosProtocol` and `AWFlickrOAuthProtocol` expose `var urlSession: URLSession { get }` with a default of `URLSession.shared`. Protocol extension default implementations create `FlickrAPIService(session: urlSession)` — conforming types override only `urlSession` to inject a test or custom session without overriding every method.
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
 - **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
 - **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods use `async throws`. No completion handlers remain in the public API.
@@ -255,16 +255,15 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
+b1db156  refactor: add AW prefix to all public types (breaking API change)
+d3540ec  docs: add detailed inline comments to all non-trivial source code
+619de5b  docs(context): update commit history after audit fixes
 e765fef  refactor: remove unused Encodable/Decodable, fix test assertions, clean up public modifiers
 cb5afb0  docs(context): update session state after urlSession injection feature
 ec55d08  feat: expose urlSession requirement on both protocols for session injection
 49dcdb9  docs(context): fix stale commit history, remove duplicate sections, fix AGENTS build command
 b81c3b8  docs: document SIMCTL_CHILD_ env var method for launching iOS demo app
 96ed3f2  refactor: replace all closure-based API with pure async/await (breaking change)
-93bc60a  feat(phase4): async/await overloads for all protocol methods + FlickrService concrete type (73 tests)
-14d2b30  refactor: rename FlickrAPIRepository to FlickrAPIService
-be912c9  docs: fix stale branch name in AGENTS.md and screencapture flag in instructions
-a0e0c3c  docs(context): update session state after screenshot refresh
 ```
 
 ---

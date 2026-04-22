@@ -8,7 +8,7 @@ import AWFlickrServices
 
 /// Drives the demo UI. Conforms to FlickrPhotosProtocol and FlickrOAuthProtocol
 /// so it can exercise the full public API surface of AWFlickrServices.
-final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthProtocol {
+final class DemoViewModel: ObservableObject, AWFlickrPhotosProtocol, AWFlickrOAuthProtocol {
 
     // Both protocols declare `urlSession`; provide it explicitly to resolve
     // the dual-conformance ambiguity. URLSession.shared is sufficient for the demo.
@@ -35,7 +35,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
     // MARK: - Search state
 
     @Published var searchText: String = ""
-    @Published var photos: [FlickrPhoto] = []
+    @Published var photos: [AWFlickrPhoto] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String? = nil
     /// Set by MOCK_DETAIL seam — ContentView presents a detail sheet for the first photo.
@@ -45,7 +45,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
 
     #if DEBUG
     /// Pre-populated by MOCK_PHOTOS seam so PhotoDetailView skips network calls.
-    var mockPhotoInfo: FlickrInfoResponse? = nil
+    var mockPhotoInfo: AWFlickrInfoResponse? = nil
     var mockPhotoComments: [String] = []
     #endif
 
@@ -109,7 +109,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
             ]
             """
             if let data = json.data(using: .utf8),
-               let decoded = try? JSONDecoder().decode([FlickrPhoto].self, from: data) {
+               let decoded = try? JSONDecoder().decode([AWFlickrPhoto].self, from: data) {
                 photos = decoded
             }
 
@@ -119,7 +119,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
             {"photo":{"owner":{"realname":"Wildlife Photographer","location":"San Francisco, CA"},"dates":{"taken":"2026-04-01 09:30:00"},"views":"4812"}}
             """
             mockPhotoInfo = (infoJSON.data(using: .utf8)).flatMap {
-                try? JSONDecoder().decode(FlickrInfoResponse.self, from: $0)
+                try? JSONDecoder().decode(AWFlickrInfoResponse.self, from: $0)
             }
             mockPhotoComments = ["Beautiful shot! \u{1F431}", "Love the composition!", "Adorable 😺"]
         }
@@ -141,7 +141,7 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
             do {
                 let fetched = try await getPhotos(
                     apiKey: apiKey,
-                    photosRequest: FlickrPhotosRequest(text: searchText, page: 1, per_page: 20)
+                    photosRequest: AWFlickrPhotosRequest(text: searchText, page: 1, per_page: 20)
                 )
                 isLoading = false
                 photos = fetched

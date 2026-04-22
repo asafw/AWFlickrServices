@@ -26,7 +26,7 @@ import Foundation
 ///
 /// All network behaviour is provided by the protocol extension default implementations
 /// via the stored `urlSession`.
-public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {
+public final class AWFlickrService: AWFlickrPhotosProtocol, AWFlickrOAuthProtocol {
 
     /// The `URLSession` used by all default protocol method implementations.
     ///

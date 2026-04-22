@@ -7,7 +7,7 @@
 
 import Foundation
 
-public protocol FlickrPhotosProtocol {
+public protocol AWFlickrPhotosProtocol {
 
     /// The `URLSession` used by the default method implementations.
     ///
@@ -28,8 +28,8 @@ public protocol FlickrPhotosProtocol {
     /// Searches Flickr for photos matching the given request.
     func getPhotos(
         apiKey: String,
-        photosRequest: FlickrPhotosRequest
-    ) async throws -> [FlickrPhoto]
+        photosRequest: AWFlickrPhotosRequest
+    ) async throws -> [AWFlickrPhoto]
 
     /// Downloads raw image bytes from the given URL.
     func downloadImageData(from url: URL) async throws -> Data
@@ -40,7 +40,7 @@ public protocol FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest
+        faveRequest: AWFlickrFaveRequest
     ) async throws
 
     /// Removes a photo from favourites.
@@ -49,7 +49,7 @@ public protocol FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest
+        faveRequest: AWFlickrFaveRequest
     ) async throws
 
     /// Posts a comment on a photo.
@@ -58,32 +58,37 @@ public protocol FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        commentRequest: FlickrCommentRequest
+        commentRequest: AWFlickrCommentRequest
     ) async throws
 
     /// Fetches metadata for a single photo.
     func getInfo(
         apiKey: String,
-        infoRequest: FlickrInfoRequest
-    ) async throws -> FlickrInfoResponse
+        infoRequest: AWFlickrInfoRequest
+    ) async throws -> AWFlickrInfoResponse
 
     /// Returns all comment texts on a photo.
     func getComments(
         apiKey: String,
-        commentsRequest: FlickrCommentsRequest
+        commentsRequest: AWFlickrCommentsRequest
     ) async throws -> [String]
 }
 
-public extension FlickrPhotosProtocol {
+public extension AWFlickrPhotosProtocol {
 
     var urlSession: URLSession { .shared }
 
+    // `service` is a computed property (not stored) so the protocol extension
+    // requires no stored state. Each method call creates a lightweight
+    // FlickrAPIService wrapping the conforming type's `urlSession`. Since
+    // FlickrAPIService holds no state beyond the session reference, the
+    // per-call allocation is negligible.
     private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
     func getPhotos(
         apiKey: String,
-        photosRequest: FlickrPhotosRequest
-    ) async throws -> [FlickrPhoto] {
+        photosRequest: AWFlickrPhotosRequest
+    ) async throws -> [AWFlickrPhoto] {
         try await service.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
     }
 
@@ -96,7 +101,7 @@ public extension FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest
+        faveRequest: AWFlickrFaveRequest
     ) async throws {
         try await service.fave(
             apiKey: apiKey, apiSecret: apiSecret,
@@ -110,7 +115,7 @@ public extension FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest
+        faveRequest: AWFlickrFaveRequest
     ) async throws {
         try await service.unfave(
             apiKey: apiKey, apiSecret: apiSecret,
@@ -124,7 +129,7 @@ public extension FlickrPhotosProtocol {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        commentRequest: FlickrCommentRequest
+        commentRequest: AWFlickrCommentRequest
     ) async throws {
         try await service.comment(
             apiKey: apiKey, apiSecret: apiSecret,
@@ -135,14 +140,14 @@ public extension FlickrPhotosProtocol {
 
     func getInfo(
         apiKey: String,
-        infoRequest: FlickrInfoRequest
-    ) async throws -> FlickrInfoResponse {
+        infoRequest: AWFlickrInfoRequest
+    ) async throws -> AWFlickrInfoResponse {
         try await service.getInfo(apiKey: apiKey, infoRequest: infoRequest)
     }
 
     func getComments(
         apiKey: String,
-        commentsRequest: FlickrCommentsRequest
+        commentsRequest: AWFlickrCommentsRequest
     ) async throws -> [String] {
         try await service.getComments(apiKey: apiKey, commentsRequest: commentsRequest)
     }
