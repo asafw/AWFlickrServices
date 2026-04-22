@@ -837,65 +837,12 @@ final class OAuthUtilitiesTests: XCTestCase {
 /// network required.
 final class FlickrPhotosProtocolAsyncTests: XCTestCase {
 
-    /// A concrete conforming type that delegates all async protocol methods to
-    /// an injected `FlickrAPIService` with a stubbed URLSession.
+    /// A concrete conforming type that exercises the protocol extension default
+    /// implementations with a stubbed `URLSession`. Now that `FlickrPhotosProtocol`
+    /// exposes `urlSession` as a requirement, injecting a session is just a stored
+    /// property — no method overrides needed.
     private struct StubBackedService: FlickrPhotosProtocol {
-        let svc: FlickrAPIService
-
-        func getPhotos(
-            apiKey: String,
-            photosRequest: FlickrPhotosRequest
-        ) async throws -> [FlickrPhoto] {
-            try await svc.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
-        }
-        func downloadImageData(from url: URL) async throws -> Data {
-            try await svc.downloadImageData(from: url)
-        }
-        func fave(
-            apiKey: String, apiSecret: String,
-            oauthToken: String, oauthTokenSecret: String,
-            faveRequest: FlickrFaveRequest
-        ) async throws {
-            try await svc.fave(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                faveRequest: faveRequest
-            )
-        }
-        func unfave(
-            apiKey: String, apiSecret: String,
-            oauthToken: String, oauthTokenSecret: String,
-            faveRequest: FlickrFaveRequest
-        ) async throws {
-            try await svc.unfave(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                faveRequest: faveRequest
-            )
-        }
-        func comment(
-            apiKey: String, apiSecret: String,
-            oauthToken: String, oauthTokenSecret: String,
-            commentRequest: FlickrCommentRequest
-        ) async throws {
-            try await svc.comment(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                commentRequest: commentRequest
-            )
-        }
-        func getInfo(
-            apiKey: String,
-            infoRequest: FlickrInfoRequest
-        ) async throws -> FlickrInfoResponse {
-            try await svc.getInfo(apiKey: apiKey, infoRequest: infoRequest)
-        }
-        func getComments(
-            apiKey: String,
-            commentsRequest: FlickrCommentsRequest
-        ) async throws -> [String] {
-            try await svc.getComments(apiKey: apiKey, commentsRequest: commentsRequest)
-        }
+        let urlSession: URLSession
     }
 
     private var session: URLSession!
@@ -906,7 +853,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [CapturingURLProtocol.self]
         session = URLSession(configuration: config)
-        service = StubBackedService(svc: FlickrAPIService(session: session))
+        service = StubBackedService(urlSession: session)
         CapturingURLProtocol.stubbedStatusCode = 200
         CapturingURLProtocol.stubbedData = Data()
         CapturingURLProtocol.lastRequest = nil
@@ -1182,8 +1129,8 @@ final class FlickrServiceTests: XCTestCase {
     }
 
     func testFlickrServiceGetPhotosAsyncReturnsPhotos() async throws {
-        // Wire CapturingURLProtocol into a session, then verify FlickrService uses the
-        // protocol default impl correctly by calling the completion-handler path.
+        // FlickrService now accepts a URLSession at init — inject CapturingURLProtocol
+        // to verify the default implementation routes through the stored session.
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [CapturingURLProtocol.self]
         CapturingURLProtocol.stubbedStatusCode = 200
@@ -1191,15 +1138,13 @@ final class FlickrServiceTests: XCTestCase {
         {"photos":{"photo":[{"id":"99","secret":"s","server":"srv","farm":2,"title":"Dog"}],
         "page":1,"pages":1,"perpage":1,"total":1}}
         """.utf8)
-
-        // FlickrService() uses URLSession.shared internally, so we exercise it through
-        // the completion-handler overload (which uses CapturingURLProtocol via shared
-        // config when swizzled in setUp). Use the async overload via the concrete type.
-        let service = FlickrService()
-        // We can't inject a session into FlickrService without Phase 3.
-        // Instead, verify static conformance: FlickrService is both protocols.
-        let _: FlickrPhotosProtocol = service
-        let _: FlickrOAuthProtocol = service
+        let service = FlickrService(urlSession: URLSession(configuration: config))
+        let photos = try await service.getPhotos(
+            apiKey: "key",
+            photosRequest: FlickrPhotosRequest(text: "dog", page: 1, per_page: 1)
+        )
+        XCTAssertEqual(photos.count, 1)
+        XCTAssertEqual(photos.first?.id, "99")
     }
 
     func testFlickrServiceIsInstantiableWithNoArguments() {

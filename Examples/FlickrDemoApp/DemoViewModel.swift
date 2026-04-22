@@ -10,6 +10,9 @@ import AWFlickrServices
 /// so it can exercise the full public API surface of AWFlickrServices.
 final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthProtocol {
 
+    // Both protocols declare `urlSession`; provide it explicitly to resolve
+    // the dual-conformance ambiguity. URLSession.shared is sufficient for the demo.
+    var urlSession: URLSession { .shared }
     // MARK: - Configuration
 
     /// Set via FLICKR_API_KEY env var, or paste into the in-app field.

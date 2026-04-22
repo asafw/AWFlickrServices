@@ -61,18 +61,36 @@ targets: [
 AWFlickrServices uses **protocol mixins**: every method is declared in a protocol and fully implemented in a `public extension`. Conforming your own type gives it all methods for free — no service object to hold onto, no initialiser to call.
 
 ```swift
-// Any Swift type works
+// Any Swift type works — all methods come from the protocol extension defaults
 struct PhotoRepository: FlickrPhotosProtocol { }
 let repo = PhotoRepository()
-repo.getPhotos(apiKey: "KEY", photosRequest: request) { result in … }
+let photos = try await repo.getPhotos(apiKey: "KEY", photosRequest: request)
 ```
 
-For lightweight call-site usage a private nested type works too:
+### Injecting a custom `URLSession`
+
+Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose a `urlSession` requirement
+with a default implementation that returns `URLSession.shared`. Override it to provide a
+custom session — for example, to intercept traffic in tests or to configure timeouts:
 
 ```swift
-private struct Service: FlickrPhotosProtocol { }
-Service().downloadImageData(from: url) { result in … }
+// Inject a URLProtocol-backed session for unit tests
+struct TestRepository: FlickrPhotosProtocol {
+    let urlSession: URLSession   // init with URLSession(configuration: ephemeralWithStub)
+}
+
+// Or configure caching / timeouts for production
+struct PhotoRepository: FlickrPhotosProtocol {
+    var urlSession: URLSession {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 10
+        return URLSession(configuration: config)
+    }
+}
 ```
+
+The internal HTTP layer (`FlickrAPIService`) is not part of the public API — `URLSession`
+is exposed instead so consumers get full session control without coupling to internal types.
 
 ---
 

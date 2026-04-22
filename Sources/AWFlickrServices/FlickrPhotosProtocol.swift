@@ -8,6 +8,23 @@
 import Foundation
 
 public protocol FlickrPhotosProtocol {
+
+    /// The `URLSession` used by the default method implementations.
+    ///
+    /// Override to inject a custom session — for example, a `URLProtocol`-backed
+    /// ephemeral session for unit tests, or a session with a custom
+    /// `URLSessionConfiguration` for production tuning.
+    ///
+    /// ### Design rationale
+    /// The internal `FlickrAPIService` type holds the actual HTTP logic and takes
+    /// a `URLSession` at init. Exposing `FlickrAPIService` publicly would leak an
+    /// implementation detail into the public API surface. Exposing `URLSession`
+    /// instead gives consumers full session control (timeouts, caching, protocol
+    /// interception) without committing to any internal type. The default
+    /// implementation in the protocol extension returns `URLSession.shared`, so
+    /// conforming types that do not need customisation pay zero overhead.
+    var urlSession: URLSession { get }
+
     /// Searches Flickr for photos matching the given request.
     func getPhotos(
         apiKey: String,
@@ -59,7 +76,9 @@ public protocol FlickrPhotosProtocol {
 
 public extension FlickrPhotosProtocol {
 
-    private var service: FlickrAPIService { FlickrAPIService() }
+    var urlSession: URLSession { .shared }
+
+    private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
     public func getPhotos(
         apiKey: String,

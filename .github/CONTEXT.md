@@ -140,6 +140,7 @@ AWFlickrServices/
 
 ## Architecture invariants
 
+- **`urlSession` protocol requirement** — both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose `var urlSession: URLSession { get }` with a default of `URLSession.shared`. Protocol extension default implementations create `FlickrAPIService(session: urlSession)` — conforming types override only `urlSession` to inject a test or custom session without overriding every method.
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
 - **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
 - **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods use `async throws`. No completion handlers remain in the public API.
@@ -268,9 +269,43 @@ d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 
 ---
 
+## Architecture decisions
+
+### `urlSession` protocol requirement (added v2.0)
+
+Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose:
+
+```swift
+var urlSession: URLSession { get }
+```
+
+with a default implementation in the protocol extension that returns `URLSession.shared`.
+
+The internal `FlickrAPIService` type is the actual HTTP layer; it accepts a `URLSession` at
+init (`FlickrAPIService(session:)`). Without `urlSession`, the protocol extension computed
+property `private var service: FlickrAPIService { FlickrAPIService() }` created a new service
+on every method call with no way for conforming types to inject a different session.
+
+`FlickrAPIService` is intentionally kept `internal` to avoid committing it to the public API.
+Exposing `URLSession` (a system type) instead gives consumers full control — custom
+`URLProtocol` subclasses for testing, custom caching or timeout configuration for
+production — without leaking the internal HTTP layer. Conforming types that don't need
+customisation pay zero overhead; the default `URLSession.shared` is returned automatically.
+
+Practical benefit: `StubBackedService` in unit tests collapsed from ~60 lines
+(overriding every protocol method to delegate to an injected service) to 2 lines:
+
+```swift
+private struct StubBackedService: FlickrPhotosProtocol {
+    let urlSession: URLSession
+}
+```
+
+---
+
 ## Remaining work
 
-- `FlickrAPIService` injection via protocol (currently instantiated per-method-call in the protocol extensions)
 - Tag `2.0.0` and merge `v2` → `master`
+- ✅ `urlSession` protocol requirement — session injection via override, `StubBackedService` simplified
 - ✅ Pure `async throws` API — all closure-based API removed (breaking change vs v1)
 - ✅ `FlickrService` concrete class added

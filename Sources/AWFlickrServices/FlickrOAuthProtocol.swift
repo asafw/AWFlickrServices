@@ -16,6 +16,18 @@ private var _webAuthSessionKey = "AWFlickrServices.webAuthSession"
 /// default implementation in the protocol extension.
 public protocol FlickrOAuthProtocol {
 
+    /// The `URLSession` used by the default OAuth flow implementation.
+    ///
+    /// Override to inject a custom session for testing or custom configuration.
+    ///
+    /// ### Design rationale
+    /// The internal `FlickrAPIService` type holds the actual HTTP logic. Exposing
+    /// `URLSession` here keeps the public API surface free of internal details
+    /// while still allowing full session control (e.g. custom `URLProtocol`
+    /// subclasses for tests) without overriding the entire OAuth flow.
+    /// The default implementation returns `URLSession.shared`.
+    var urlSession: URLSession { get }
+
     /// Runs the full three-legged OAuth 1.0a flow and returns the access token response.
     func performOAuthFlow(
         from context: ASWebAuthenticationPresentationContextProviding,
@@ -27,7 +39,9 @@ public protocol FlickrOAuthProtocol {
 
 extension FlickrOAuthProtocol {
 
-    private var service: FlickrAPIService { FlickrAPIService() }
+    public var urlSession: URLSession { .shared }
+
+    private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
     public func performOAuthFlow(
         from context: ASWebAuthenticationPresentationContextProviding,
