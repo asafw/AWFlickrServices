@@ -7,8 +7,8 @@
 
 ## Current branch: `v2` (active development)
 
-`master` = v1.0.0 (original, frozen — kept for existing consumers)  
-`v2` = modernised v2.0.0 work in progress — all Phase 1–3 improvements applied
+`master` = v3.0.0 (latest stable — v2 merged in, full AW-prefix rename)  
+`v2` = active development branch — all changes merged to master at 3.0.0
 
 ---
 
@@ -19,8 +19,9 @@ Uses a **protocol mixin pattern** — consumers conform to `AWFlickrOAuthProtoco
 `AWFlickrPhotosProtocol` and gain full API access through protocol extension default implementations.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
-- **v1.0.0:** `master` branch — original 2020 code, frozen
-- **v2.0.0 (WIP):** `v2` branch — modernised, tested, iOS 16+ and macOS 12+
+- **v1.0.0:** `master` branch — original 2020 code (tag: `1.0.0`)
+- **v2.0.0:** `v2` branch tag — async/await rewrite, urlSession injection, 73 tests
+- **v3.0.0:** `master` tag — AW-prefix rename on all public types (breaking), detailed inline comments
 
 ---
 
@@ -255,15 +256,15 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
+f32b43b  chore: merge v2 into master for 3.0.0 release (tag: 3.0.0)
+ca13e0f  docs(context): update type names to AW-prefixed names
 b1db156  refactor: add AW prefix to all public types (breaking API change)
+eaa3071  docs(context): update session state after inline comment additions
 d3540ec  docs: add detailed inline comments to all non-trivial source code
-619de5b  docs(context): update commit history after audit fixes
+619de5b  docs(context): update commit history after audit fixes (tag: 2.0.0)
 e765fef  refactor: remove unused Encodable/Decodable, fix test assertions, clean up public modifiers
 cb5afb0  docs(context): update session state after urlSession injection feature
 ec55d08  feat: expose urlSession requirement on both protocols for session injection
-49dcdb9  docs(context): fix stale commit history, remove duplicate sections, fix AGENTS build command
-b81c3b8  docs: document SIMCTL_CHILD_ env var method for launching iOS demo app
-96ed3f2  refactor: replace all closure-based API with pure async/await (breaking change)
 ```
 
 ---
