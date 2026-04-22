@@ -24,15 +24,8 @@ jobs:
 
       - name: Test
         run: |
-          SIM=$(xcrun simctl list devices available -j | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-for devs in data['devices'].values():
-    for d in devs:
-        if d.get('isAvailable') and 'iPhone' in d.get('name', ''):
-            print(d['udid'])
-            exit()
-")
+          SIM=$(xcrun simctl list devices available -j \
+            | python3 -c "import json,sys;devs=[d for ds in json.load(sys.stdin)['devices'].values() for d in ds if d.get('isAvailable') and 'iPhone' in d.get('name','')];print(devs[0]['udid'])")
           xcodebuild -scheme AWFlickrServices-Package \
             -destination "platform=iOS Simulator,id=$SIM" \
             test
