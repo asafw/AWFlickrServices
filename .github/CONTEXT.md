@@ -53,10 +53,10 @@ Uses a **protocol mixin pattern** — consumers conform to `AWFlickrOAuthProtoco
 | Key-value OAuth response parser | `components(separatedBy:"=")` silently drops values with `=` | splits on first `=` only via `range(of:)` (A9) |
 | `fave`/`unfave`/`comment` on stat:fail 200 | silently returned `.success(())` | calls `checkFlickrError`, throws `.apiError` (A13) |
 | `callbackURLScheme` in `ASWebAuthenticationSession` | full URL string (broke matching on some OS versions) | extracts scheme via `URL(string:)?.scheme` (A14) |
-| Unit tests | placeholder only | 74 tests across 10 suites |
+| Unit tests | placeholder only | 73 tests across 10 suites |
 | Integration tests | none | 16 live tests (2 suites) — skip without credentials |
 | API style | completion handlers (`@escaping (Result<T,Error>) -> Void`) | pure `async throws` — no completion handlers |
-| CI | none | GitHub Actions `ios.yml` |
+| CI | none | GitHub Actions `ios.yml` + `macos.yml` |
 
 ---
 
@@ -104,7 +104,8 @@ AWFlickrServices/
 └── .github/
     ├── CONTEXT.md
     ├── instructions/awflickrservices.instructions.md
-    └── workflows/ios.yml
+    ├── workflows/ios.yml
+    └── workflows/macos.yml
 ```
 
 ---
@@ -170,11 +171,11 @@ AWFlickrServices/
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
 | `FlickrPhotosProtocolAsyncTests` | 15 | `StubBackedService` (implements async protocol requirements, delegates to injected `FlickrAPIService`); all 7 protocol methods success and error paths |
-| `FlickrServiceTests` | 3 | `FlickrService` instantiation, conformance to both protocols |
+| `FlickrServiceTests` | 3 | `AWFlickrService` instantiation, conformance to both protocols |
 
 Run unit tests:
 ```bash
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
 ```
 
 ### Integration tests — 16 total (skip gracefully without credentials)
@@ -191,7 +192,7 @@ getInfo decodes, views numeric, getComments decodes, concurrent searches, farm C
 Run integration tests:
 ```bash
 echo "your_secret" > /tmp/flickr_api_secret   # for OAuth tests
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
 ```
 
 ---
@@ -201,9 +202,9 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:
 ```bash
 cd ~/Desktop/asafw/AWFlickrServices
 # Unit tests (fast, no network)
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
 # Integration tests (live network — requires /tmp/flickr_api_key)
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesIntegrationTests test
 ```
 
 > `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
@@ -256,15 +257,16 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
+6143f3a  chore: merge ci scheme fix (master)
+37f4ad8  ci: fix scheme name to AWFlickrServices-Package
+9cd6cb2  docs: add macOS CI badge and update installation to 3.0.0
+9b766f6  ci: add macOS build and test workflow
+8429e79  docs(context): update for 3.0.0 release
 f32b43b  chore: merge v2 into master for 3.0.0 release (tag: 3.0.0)
 ca13e0f  docs(context): update type names to AW-prefixed names
 b1db156  refactor: add AW prefix to all public types (breaking API change)
 eaa3071  docs(context): update session state after inline comment additions
 d3540ec  docs: add detailed inline comments to all non-trivial source code
-619de5b  docs(context): update commit history after audit fixes (tag: 2.0.0)
-e765fef  refactor: remove unused Encodable/Decodable, fix test assertions, clean up public modifiers
-cb5afb0  docs(context): update session state after urlSession injection feature
-ec55d08  feat: expose urlSession requirement on both protocols for session injection
 ```
 
 ---
@@ -273,7 +275,7 @@ ec55d08  feat: expose urlSession requirement on both protocols for session injec
 
 ### `urlSession` protocol requirement (added v2.0)
 
-Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose:
+Both `AWFlickrPhotosProtocol` and `AWFlickrOAuthProtocol` expose:
 
 ```swift
 var urlSession: URLSession { get }

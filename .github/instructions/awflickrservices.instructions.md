@@ -10,15 +10,16 @@ applyTo: "**"
 ## Project overview
 
 A dependency-free Swift Package for integrating the Flickr API in iOS and macOS apps.
-Uses a **protocol mixin pattern**: consumers conform to `FlickrOAuthProtocol`
-or `FlickrPhotosProtocol` and gain full API access through protocol extension
+Uses a **protocol mixin pattern**: consumers conform to `AWFlickrOAuthProtocol`
+or `AWFlickrPhotosProtocol` and gain full API access through protocol extension
 default implementations. No subclassing or object injection required.
 
-Originally written in 2020. v2.0 (2026): iOS 16+ / macOS 12+, completion-handler API,
-zero external dependencies, no UIKit dependency.
+Originally written in 2020. v2.0 (2026): iOS 16+ / macOS 12+, pure `async throws` API,
+zero external dependencies, no UIKit dependency. v3.0 (2026): `AW` prefix added to all
+public types (breaking change), detailed inline comments.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
-- **Active branch:** `v2` — all development here; `master` frozen at v1.0.0
+- **Active branch:** `v2` — all development here; `master` is stable at v3.0.0
 - **Authoritative state:** `.github/CONTEXT.md` — always read before making changes.
 
 ---
@@ -68,14 +69,14 @@ AWFlickrServices/
 
 | Protocol | Inherits from | Purpose |
 |---|---|---|
-| `FlickrOAuthProtocol` | — | Drives three-legged OAuth 1.0a flow |
-| `FlickrPhotosProtocol` | — | Photo search, image data download, fave/unfave/comment |
+| `AWFlickrOAuthProtocol` | — | Drives three-legged OAuth 1.0a flow |
+| `AWFlickrPhotosProtocol` | — | Photo search, image data download, fave/unfave/comment |
 
 Both protocols use the **mixin pattern**: implement the method signature in the
 protocol; provide the full implementation in a `public extension`. Conforming
 types get all behaviour for free.
 
-Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` declare:
+Both `AWFlickrPhotosProtocol` and `AWFlickrOAuthProtocol` declare:
 ```swift
 var urlSession: URLSession { get }   // default: URLSession.shared
 ```
@@ -83,32 +84,32 @@ Conforming types override this to inject a custom session (e.g. a URLProtocol-ba
 ephemeral session for tests). Types conforming to both protocols must provide
 `urlSession` explicitly to resolve the dual-default ambiguity.
 
-`FlickrOAuthProtocol.performOAuthFlow(from:...)` takes an
+`AWFlickrOAuthProtocol.performOAuthFlow(from:...)` takes an
 `ASWebAuthenticationPresentationContextProviding` directly — works on both iOS
 and macOS. The `ASWebAuthenticationSession` is retained via
 `objc_setAssociatedObject` on the context object so it survives until the
 callback fires.
 
-### FlickrPhotosProtocol methods
+### AWFlickrPhotosProtocol methods
 
 Each method has a **async/await** signature only (pure `async throws`; no completion handlers).
 
 | Method | OAuth required | Async signature |
 |---|---|---|
-| `getPhotos(apiKey:photosRequest:)` | No | `throws -> [FlickrPhoto]` |
+| `getPhotos(apiKey:photosRequest:)` | No | `throws -> [AWFlickrPhoto]` |
 | `downloadImageData(from:)` | No | `throws -> Data` |
-| `getInfo(apiKey:infoRequest:)` | No | `throws -> FlickrInfoResponse` |
+| `getInfo(apiKey:infoRequest:)` | No | `throws -> AWFlickrInfoResponse` |
 | `getComments(apiKey:commentsRequest:)` | No | `throws -> [String]` |
 | `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:)` | Yes | `throws` |
 | `unfave(...)` | Yes | `throws` |
 | `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:)` | Yes | `throws` |
 
-`FlickrOAuthProtocol.performOAuthFlow` also has an async signature: `throws -> AccessTokenResponse`.
+`AWFlickrOAuthProtocol.performOAuthFlow` also has an async signature: `throws -> AWAccessTokenResponse`.
 
-### `FlickrService`
+### `AWFlickrService`
 
 ```swift
-public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {
+public final class AWFlickrService: AWFlickrPhotosProtocol, AWFlickrOAuthProtocol {
     public let urlSession: URLSession
     public init(urlSession: URLSession = .shared)
 }
@@ -121,15 +122,15 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
 
 | Type | Key fields / notes |
 |---|---|
-| `FlickrPhoto` | `id`, `secret`, `title`, `farm`, `server`; URL helpers: `thumbnailPhotoURLString()`, `largePhotoURLString()` |
-| `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` — **Int in v2** |
-| `FlickrFaveRequest` | `photo_id: String` |
-| `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
-| `FlickrInfoRequest` | `photo_id: String`, `secret: String` |
-| `FlickrInfoResponse` | `.photo: PhotoInfo` → `.owner: Owner` (realname, location?), `.dates: Dates` (taken), `.views: String` |
-| `FlickrCommentsRequest` | `photo_id: String` |
-| `AccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
-| `FlickrAPIError` | `.parsingError`, `.networkError`, `.apiError(code: Int, message: String)` |
+| `AWFlickrPhoto` | `id`, `secret`, `title`, `farm`, `server`; URL helpers: `thumbnailPhotoURLString()`, `largePhotoURLString()` |
+| `AWFlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` — **Int in v2** |
+| `AWFlickrFaveRequest` | `photo_id: String` |
+| `AWFlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
+| `AWFlickrInfoRequest` | `photo_id: String`, `secret: String` |
+| `AWFlickrInfoResponse` | `.photo: AWFlickrPhotoInfo` → `.owner: AWFlickrOwner` (realname, location?), `.dates: AWFlickrDates` (taken), `.views: String` |
+| `AWFlickrCommentsRequest` | `photo_id: String` |
+| `AWAccessTokenResponse` | `fullname`, `oauth_token`, `oauth_token_secret`, `user_nsid`, `username` |
+| `AWFlickrAPIError` | `.parsingError`, `.networkError`, `.apiError(code: Int, message: String)` |
 
 ### Internal types (do not expose publicly)
 
@@ -149,7 +150,7 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
   returns `Data`; callers convert to `UIImage`/`NSImage` themselves.
 - **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods are `async throws`. No completion handlers remain. `URLSession.data(for:)` (iOS 15+/macOS 12+) is used throughout `FlickrAPIService`.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks for `{"stat":"fail",...}` before
-  attempting the real type decode and throws `FlickrAPIError.apiError(code:message:)`.
+  attempting the real type decode and throws `AWFlickrAPIError.apiError(code:message:)`.
   `checkFlickrError(_:)` does the same for void-returning POST endpoints (`fave`, `unfave`, `comment`).
   Both must be applied to all Flickr REST API responses.
   All six affected endpoints have unit test coverage for the stat:fail path.
@@ -185,9 +186,9 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
 ```bash
 cd ~/Desktop/asafw/AWFlickrServices
 # Unit tests (fast, no network)
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
 # All tests including integration (requires /tmp/flickr_api_key)
-xcodebuild -scheme AWFlickrServices -destination "platform=macOS" test
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" test
 ```
 
 > `swift build` / `swift test` will fail with "no such module 'AuthenticationServices'" on
@@ -197,7 +198,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" test
 
 ## Session end checklist
 
-1. Run unit tests — all 51 must pass.
+1. Run unit tests — all 73 must pass.
 2. Update `.github/CONTEXT.md`: latest commit hash, test counts, any changed APIs.
 3. Update this file if architecture, conventions, or type descriptions changed.
 4. Commit both together:
