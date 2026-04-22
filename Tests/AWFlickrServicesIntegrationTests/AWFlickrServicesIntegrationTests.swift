@@ -34,11 +34,11 @@ private let apiKey: String? = readCredential("FLICKR_API_KEY")
 
 final class FlickrSearchIntegrationTests: XCTestCase {
 
-    private var repository: FlickrAPIRepository!
+    private var repository: FlickrAPIService!
 
     override func setUp() {
         super.setUp()
-        repository = FlickrAPIRepository()
+        repository = FlickrAPIService()
     }
 
     // MARK: - Helpers
@@ -312,7 +312,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
     /// Validates that an invalid key yields `FlickrAPIError.apiError` — not a crash, hang,
     /// or raw DecodingError. Flickr returns HTTP 200 with `{"stat":"fail",...}` for bad keys,
-    /// so this also validates that `FlickrAPIRepository` inspects `stat` before decoding.
+    /// so this also validates that `FlickrAPIService` inspects `stat` before decoding.
     func testInvalidAPIKeyReturnsAPIError() throws {
         try XCTSkipIf(apiKey == nil || apiKey!.isEmpty, "Set FLICKR_API_KEY to run integration tests")
         let expectation = expectation(description: "search completes")
@@ -527,11 +527,11 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 ///   echo "your_token_secret" > /tmp/flickr_oauth_token_secret
 final class FlickrOAuthIntegrationTests: XCTestCase {
 
-    private var repository: FlickrAPIRepository!
+    private var repository: FlickrAPIService!
 
     override func setUp() {
         super.setUp()
-        repository = FlickrAPIRepository()
+        repository = FlickrAPIService()
     }
 
     // MARK: - Helpers

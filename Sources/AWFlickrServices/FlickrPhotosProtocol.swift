@@ -62,7 +62,7 @@ public protocol FlickrPhotosProtocol {
 extension FlickrPhotosProtocol {
 
     // A single repository instance per call; defaults to URLSession.shared.
-    private var repository: FlickrAPIRepository { FlickrAPIRepository() }
+    private var repository: FlickrAPIService { FlickrAPIService() }
 
     public func getPhotos(
         apiKey: String,

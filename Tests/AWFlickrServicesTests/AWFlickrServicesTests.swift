@@ -112,7 +112,7 @@ final class FlickrModelsDecodingTests: XCTestCase {
     }
 }
 
-// MARK: - FlickrAPIRepository (URL building via URLProtocol stub)
+// MARK: - FlickrAPIService (URL building via URLProtocol stub)
 
 /// Captures the last request made through a URLSession configured with this protocol.
 final class CapturingURLProtocol: URLProtocol {
@@ -139,17 +139,17 @@ final class CapturingURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
-final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
+final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
     private var session: URLSession!
-    private var repository: FlickrAPIRepository!
+    private var repository: FlickrAPIService!
 
     override func setUp() {
         super.setUp()
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [CapturingURLProtocol.self]
         session = URLSession(configuration: config)
-        repository = FlickrAPIRepository(session: session)
+        repository = FlickrAPIService(session: session)
         CapturingURLProtocol.stubbedStatusCode = 200
         CapturingURLProtocol.stubbedData = Data()
         CapturingURLProtocol.lastRequest = nil
@@ -598,19 +598,19 @@ final class FlickrAPIRepositoryURLBuildingTests: XCTestCase {
     }
 }
 
-// MARK: - FlickrAPIRepository OAuth response parsing
+// MARK: - FlickrAPIService OAuth response parsing
 
-final class FlickrAPIRepositoryOAuthParsingTests: XCTestCase {
+final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
 
     private var session: URLSession!
-    private var repository: FlickrAPIRepository!
+    private var repository: FlickrAPIService!
 
     override func setUp() {
         super.setUp()
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [CapturingURLProtocol.self]
         session = URLSession(configuration: config)
-        repository = FlickrAPIRepository(session: session)
+        repository = FlickrAPIService(session: session)
         CapturingURLProtocol.stubbedStatusCode = 200
         CapturingURLProtocol.stubbedData = Data()
         CapturingURLProtocol.lastRequest = nil

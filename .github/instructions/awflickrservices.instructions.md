@@ -29,7 +29,7 @@ zero external dependencies, no UIKit dependency.
 AWFlickrServices/
 ├── Sources/AWFlickrServices/
 │   ├── FlickrAPIError.swift          ← Public error enum (parsingError, networkError, apiError)
-│   ├── FlickrAPIRepository.swift     ← Internal HTTP layer; decodeFlickrJSON checks stat:fail before decode
+│   ├── FlickrAPIService.swift     ← Internal HTTP layer; decodeFlickrJSON checks stat:fail before decode
 │   ├── FlickrEndpoints.swift         ← Internal caseless enum of URL / method constants
 │   ├── FlickrModels.swift            ← Public request & response models (Sendable)
 │   ├── FlickrOAuthModels.swift       ← OAuth token models (partially public)
@@ -108,10 +108,10 @@ callback fires.
 
 ### Internal types (do not expose publicly)
 
-- `FlickrAPIRepository` — concrete `URLSession`-based HTTP implementation; `init(session:)` injects the session
+- `FlickrAPIService` — concrete `URLSession`-based HTTP implementation; `init(session:)` injects the session
 - `FlickrEndpoints` — all URL templates and Flickr REST method strings
 - `RequestTokenResponse` — intermediate OAuth model
-- `FlickrErrorEnvelope` — private struct in `FlickrAPIRepository.swift` for `stat:fail` detection
+- `FlickrErrorEnvelope` — private struct in `FlickrAPIService.swift` for `stat:fail` detection
 - `rfc3986Encoded(_:)` and `hmacsha1EncryptedString(string:key:)` in `FlickrOAuthUtilities.swift` — `internal` (not `public`)
 
 ---
@@ -138,7 +138,7 @@ callback fires.
   `rfc3986Encoded(_:)` helper in `FlickrOAuthUtilities.swift` implements this.
 - **Alphanumeric OAuth nonce** — `UUID().uuidString` with hyphens stripped.
 - **`FlickrPhotosRequest.page` / `per_page` are `Int`** (v2 — changed from `String` in v1).
-  The conversion to string is done internally inside `FlickrAPIRepository`.
+  The conversion to string is done internally inside `FlickrAPIService`.
 - **`Comment.content`** — the Flickr JSON field `_content` is decoded via `CodingKeys`
   into the Swift-idiomatic property name `content`. Do not revert to `_content`.
 
@@ -193,7 +193,7 @@ xcodebuild -scheme AWFlickrServices -destination "platform=macOS" test
 AWFlickrServices/
 ├── Sources/AWFlickrServices/
 │   ├── FlickrAPIError.swift          ← Public error enum (parsingError, networkError)
-│   ├── FlickrAPIRepository.swift     ← Internal HTTP layer (URLSession injection seam)
+│   ├── FlickrAPIService.swift     ← Internal HTTP layer (URLSession injection seam)
 │   ├── FlickrEndpoints.swift         ← Internal caseless enum of URL / method constants
 │   ├── FlickrModels.swift            ← Public request & response models (Sendable)
 │   ├── FlickrOAuthModels.swift       ← OAuth token models (partially public)
@@ -256,7 +256,7 @@ callback fires.
 
 ### Internal types (do not expose publicly)
 
-- `FlickrAPIRepository` — concrete `URLSession.shared`-based HTTP implementation
+- `FlickrAPIService` — concrete `URLSession.shared`-based HTTP implementation
 - `FlickrEndpoints` — all URL templates and Flickr REST method strings
 - `RequestTokenResponse` — intermediate OAuth model
 - Free functions in `FlickrOAuthUtilities.swift` — HMAC-SHA1 signing, OAuth
@@ -282,7 +282,7 @@ callback fires.
   `rfc3986Encoded(_:)` helper in `FlickrOAuthUtilities.swift` implements this.
 - **Alphanumeric OAuth nonce** — `UUID().uuidString` with hyphens stripped.
 - **`FlickrPhotosRequest.page` / `per_page` are `Int`** (v2 — changed from `String` in v1).
-  The conversion to string is done internally inside `FlickrAPIRepository`.
+  The conversion to string is done internally inside `FlickrAPIService`.
 - **`Comment.content`** — the Flickr JSON field `_content` is decoded via `CodingKeys`
   into the Swift-idiomatic property name `content`. Do not revert to `_content`.
 

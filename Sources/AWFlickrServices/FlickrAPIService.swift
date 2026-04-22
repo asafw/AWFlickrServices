@@ -1,5 +1,5 @@
 //
-//  FlickrAPIRepository.swift
+//  FlickrAPIService.swift
 //  
 //
 //  Created by Asaf Weinberg on 7/2/20.
@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct FlickrAPIRepository {
+struct FlickrAPIService {
 
     let session: URLSession
 

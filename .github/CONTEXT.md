@@ -34,7 +34,7 @@ Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol`
 | `UIKit` dependency | yes (`UIImage`) | removed — `downloadImageData` returns `Data` |
 | `FlickrEndpoints` | `struct` with `let` | caseless `enum` with `static let` |
 | NS legacy types | `NSDate`, `NSUUID` etc | pure Swift types |
-| `URLSession` | hardcoded `.shared` | injected via `FlickrAPIRepository.init(session:)` |
+| `URLSession` | hardcoded `.shared` | injected via `FlickrAPIService.init(session:)` |
 | HTTP validation | none | `validateHTTPResponse` checks 200–299 |
 | Image caching | unreliable | `returnCacheDataElseLoad` |
 | `Comment._content` | leading-underscore property | `CodingKeys` mapping → `content` |
@@ -64,7 +64,7 @@ Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol`
 AWFlickrServices/
 ├── Sources/AWFlickrServices/
 │   ├── FlickrAPIError.swift          ← Public error enum (parsingError, networkError, apiError)
-│   ├── FlickrAPIRepository.swift     ← Internal HTTP layer; decodeFlickrJSON checks stat:fail
+│   ├── FlickrAPIService.swift     ← Internal HTTP layer; decodeFlickrJSON checks stat:fail
 │   ├── FlickrEndpoints.swift         ← Internal caseless enum of URL / method constants
 │   ├── FlickrModels.swift            ← Public request & response models (Sendable)
 │   ├── FlickrOAuthModels.swift       ← OAuth token models (partially public)
@@ -161,8 +161,8 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 | thumbnail / large URL format |
 | `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
 | `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
-| `FlickrAPIRepositoryURLBuildingTests` | 25 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success (.success(())), downloadImageData HTTP error, oauth_signature present |
-| `FlickrAPIRepositoryOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret (both getAccessToken and getRequestToken), A13 stat:fail on fave |
+| `FlickrAPIServiceURLBuildingTests` | 25 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success (.success(())), downloadImageData HTTP error, oauth_signature present |
+| `FlickrAPIServiceOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret (both getAccessToken and getRequestToken), A13 stat:fail on fave |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
 
@@ -259,7 +259,7 @@ fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated
 
 ## Remaining work (Phase 3–4, future)
 
-- Phase 3: `FlickrAPIRepository` injection via protocol (currently instantiated per-method-call in the protocol extensions)
+- Phase 3: `FlickrAPIService` injection via protocol (currently instantiated per-method-call in the protocol extensions)
 - Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
 - Phase 4: `FlickrService` class wrapper for SwiftUI consumers
 - Tag `2.0.0` and merge `v2` → `master` when Phase 3–4 are complete
@@ -303,7 +303,7 @@ ccd3bc5   Version 1.0.0
 ## Remaining work (Phase 3–4, future)
 
 - Change `FlickrPhotosRequest.page`/`per_page` public init already done (Int)
-- Phase 3: `FlickrAPIRepository` injection via protocol (currently instantiated per-method-call)
+- Phase 3: `FlickrAPIService` injection via protocol (currently instantiated per-method-call)
 - Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
 - Phase 4: `FlickrService` class wrapper for SwiftUI consumers
 - Tag `2.0.0` on `v2` branch when Phase 3–4 are complete, then merge to master
@@ -341,13 +341,9 @@ ccd3bc5  Version 1.0.0
 
 ## Known issues / potential improvements
 
-- No real unit tests — only the SPM-generated placeholder.
-- `FlickrAPIRepository` uses `URLSession.shared` with no injectable session — cannot be
-  unit tested without refactoring to accept a `URLSession` parameter.
-- `FlickrPhotosRequest.page` / `per_page` are `String` but conceptually integers — could
-  be changed to `Int` with string conversion moved inside the repository. (`total` field
-  in `FlickrPhotos` was already changed from `String` to `Int` in commit `442d7cb`.)
+- `FlickrAPIService` is instantiated per-method-call inside `FlickrPhotosProtocol` and
+  `FlickrOAuthProtocol` computed property `repository` — Phase 3 will introduce a protocol
+  so callers can inject a custom session without subclassing (testability seam).
 - Completion handlers fire on the URLSession background queue — callers must dispatch to
   main queue themselves for UI updates.
-- No Swift 5.5+ async/await overloads.
-- `swift-tools-version` is 5.2 — could be bumped to 5.9 for modern package features.
+- No Swift 5.5+ async/await overloads (Phase 4).

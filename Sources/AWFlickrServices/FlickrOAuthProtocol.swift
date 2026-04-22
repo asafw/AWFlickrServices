@@ -22,7 +22,7 @@ public protocol FlickrOAuthProtocol {
 
 extension FlickrOAuthProtocol {
 
-    private var repository: FlickrAPIRepository { FlickrAPIRepository() }
+    private var repository: FlickrAPIService { FlickrAPIService() }
 
     public func performOAuthFlow(
         from context: ASWebAuthenticationPresentationContextProviding,
