@@ -29,22 +29,23 @@ def activate_app(pid: int) -> None:
 
 
 def find_window(owner_name: str) -> tuple[int, int, int, int, int] | None:
-    """Return (window_id, x, y, width, height) for the first matching on-screen window."""
+    """Return (window_id, x, y, width, height) for the first matching window."""
     windows = Quartz.CGWindowListCopyWindowInfo(
-        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
+        Quartz.kCGWindowListOptionAll | Quartz.kCGWindowListExcludeDesktopElements,
         Quartz.kCGNullWindowID,
     )
     for w in windows:
         owner = w.get(Quartz.kCGWindowOwnerName, "")
+        name = w.get(Quartz.kCGWindowName, "") or ""
         layer = w.get(Quartz.kCGWindowLayer, 99)
-        if owner_name.lower() in owner.lower() and layer == 0:
+        if owner_name.lower() in owner.lower() and layer == 0 and len(name) > 0:
             bounds = w.get(Quartz.kCGWindowBounds, {})
             x = int(bounds.get("X", 0))
             y = int(bounds.get("Y", 0))
             width = int(bounds.get("Width", 0))
             height = int(bounds.get("Height", 0))
             window_id = w.get(Quartz.kCGWindowNumber, None)
-            if width > 0 and height > 0 and window_id is not None:
+            if width > 200 and height > 200 and window_id is not None:
                 return window_id, x, y, width, height
     return None
 
@@ -69,10 +70,9 @@ def main():
     window_id, x, y, w, h = result
     region = f"{x},{y},{w},{h}"
     print(f"Window bounds for '{owner_name}': {region} (id={window_id})")
-    # -R captures the screen region at those coordinates. The app must be
-    # frontmost (activate_app ensures this) so it is not obscured.
+    # -l captures the specific window by ID — works even when occluded by other apps.
     capture = subprocess.run(
-        ["screencapture", "-x", "-R", region, output],
+        ["screencapture", "-x", "-l", str(window_id), output],
         capture_output=True,
         text=True,
     )
