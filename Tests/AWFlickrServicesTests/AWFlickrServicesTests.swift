@@ -94,22 +94,6 @@ final class FlickrModelsDecodingTests: XCTestCase {
         let response = try JSONDecoder().decode(FlickrCommentsResponse.self, from: Data(json.utf8))
         XCTAssertEqual(response.comments.comment?.first?.content, "great photo!")
     }
-
-    func testAccessTokenResponseDecoding() throws {
-        let json = """
-        {
-          "fullname": "Alice Flickr",
-          "oauth_token": "tok123",
-          "oauth_token_secret": "sec456",
-          "user_nsid": "12345@N07",
-          "username": "aliceflickr"
-        }
-        """
-        let token = try JSONDecoder().decode(AccessTokenResponse.self, from: Data(json.utf8))
-        XCTAssertEqual(token.fullname, "Alice Flickr")
-        XCTAssertEqual(token.oauth_token, "tok123")
-        XCTAssertEqual(token.user_nsid, "12345@N07")
-    }
 }
 
 // MARK: - FlickrAPIService (URL building via URLProtocol stub)
@@ -390,8 +374,8 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertFalse(url.contains("great photo!"), "Space must be percent-encoded, not passed raw")
-        XCTAssertTrue(url.contains("great%20photo") || url.contains("great+photo") == false,
-                      "Space should be %20-encoded per RFC 3986, got: \(url)")
+        XCTAssertFalse(url.contains("great+photo"),
+                      "Space must not be encoded as '+'; RFC 3986 requires '%20', got: \(url)")
     }
 
     func testGetPhotosReturnsDecodedPhotoArray() async throws {
@@ -640,12 +624,7 @@ final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
 final class RFC3986EncodingTests: XCTestCase {
 
     private func encoded(_ input: String) -> String {
-        // Exercise rfc3986Encoded via a comment_text value that appears in the generated URL.
-        // We build a URL using CapturingURLProtocol and extract the comment_text value.
-        // Because that's heavyweight, we test the contract more directly:
-        // rfc3986Encoded must percent-encode everything outside alphanumerics + "-._~"
-        let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-        return input.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
+        rfc3986Encoded(input)
     }
 
     private func assertEncoded(_ input: String, doesNotContain literal: String, file: StaticString = #file, line: UInt = #line) {

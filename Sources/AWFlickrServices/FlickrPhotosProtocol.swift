@@ -80,18 +80,18 @@ public extension FlickrPhotosProtocol {
 
     private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
-    public func getPhotos(
+    func getPhotos(
         apiKey: String,
         photosRequest: FlickrPhotosRequest
     ) async throws -> [FlickrPhoto] {
         try await service.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
     }
 
-    public func downloadImageData(from url: URL) async throws -> Data {
+    func downloadImageData(from url: URL) async throws -> Data {
         try await service.downloadImageData(from: url)
     }
 
-    public func fave(
+    func fave(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
@@ -105,7 +105,7 @@ public extension FlickrPhotosProtocol {
         )
     }
 
-    public func unfave(
+    func unfave(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
@@ -119,7 +119,7 @@ public extension FlickrPhotosProtocol {
         )
     }
 
-    public func comment(
+    func comment(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
@@ -133,14 +133,14 @@ public extension FlickrPhotosProtocol {
         )
     }
 
-    public func getInfo(
+    func getInfo(
         apiKey: String,
         infoRequest: FlickrInfoRequest
     ) async throws -> FlickrInfoResponse {
         try await service.getInfo(apiKey: apiKey, infoRequest: infoRequest)
     }
 
-    public func getComments(
+    func getComments(
         apiKey: String,
         commentsRequest: FlickrCommentsRequest
     ) async throws -> [String] {

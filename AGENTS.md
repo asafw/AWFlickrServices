@@ -34,4 +34,4 @@ xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-
 
 > `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
 
-All 74 tests must pass after any change.
+All 73 tests must pass after any change.

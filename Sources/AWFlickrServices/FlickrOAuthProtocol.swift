@@ -37,13 +37,13 @@ public protocol FlickrOAuthProtocol {
     ) async throws -> AccessTokenResponse
 }
 
-extension FlickrOAuthProtocol {
+public extension FlickrOAuthProtocol {
 
-    public var urlSession: URLSession { .shared }
+    var urlSession: URLSession { .shared }
 
     private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
-    public func performOAuthFlow(
+    func performOAuthFlow(
         from context: ASWebAuthenticationPresentationContextProviding,
         apiKey: String,
         apiSecret: String,

@@ -38,7 +38,7 @@ AWFlickrServices/
 │   ├── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl (completion + async overloads)
 │   └── FlickrService.swift           ← `public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {}`
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 74 unit tests (10 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 73 unit tests (10 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI sources (macOS + iOS)

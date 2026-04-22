@@ -106,7 +106,7 @@ is exposed instead so consumers get full session control without coupling to int
 | `FlickrFaveRequest` | `photo_id: String` |
 | `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
 
-All request types conform to `Encodable` and `Sendable`.
+All request types conform to `Sendable`.
 
 ### Response types
 
@@ -179,7 +179,7 @@ Persist `oauth_token` and `oauth_token_secret` (e.g. in the Keychain) — both a
 
 ### `FlickrAPIError`
 
-All completion handlers deliver `Result<T, Error>`. Cast to `FlickrAPIError` for structured handling:
+All `async throws` methods throw `FlickrAPIError`. Use a `do/catch` block for structured error handling:
 
 ```swift
 public enum FlickrAPIError: Error, Equatable {

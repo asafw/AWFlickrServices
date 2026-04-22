@@ -86,7 +86,7 @@ AWFlickrServices/
 │   ├── Screenshots/FlickrDemoScreenshots.swift  ← UITest screenshot pipeline (5 tests; MOCK_PHOTOS seam)
 │   └── .gitignore                    ← ignores the generated .xcodeproj
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 55 unit tests (8 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 73 unit tests (10 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
 ├── screenshots/
@@ -156,14 +156,14 @@ AWFlickrServices/
 
 ## Tests
 
-### Unit tests — 74 passing
+### Unit tests — 73 passing
 
 | Suite | Count | What it covers |
 |---|---|---|
 | `FlickrEndpointsTests` | 2 | host URL, URL template suffixes |
 | `FlickrPhotoTests` | 2 | thumbnail / large URL format |
 | `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
-| `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
+| `FlickrModelsDecodingTests` | 3 | FlickrInfoResponse, Owner nil location, Comment CodingKey |
 | `FlickrAPIServiceURLBuildingTests` | 24 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success, downloadImageData HTTP error, oauth_signature present — all `async throws` |
 | `FlickrAPIServiceOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret, missing field → parsingError — all `async throws` |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |

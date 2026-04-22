@@ -38,7 +38,7 @@ struct FlickrPhotosResponse: Decodable {
 }
 
 /// Parameters for a Flickr photo search request.
-public struct FlickrPhotosRequest: Encodable, Sendable {
+public struct FlickrPhotosRequest: Sendable {
     public let text: String
     public let page: Int
     public let per_page: Int
@@ -51,7 +51,7 @@ public struct FlickrPhotosRequest: Encodable, Sendable {
 }
 
 /// Request model for faving or unfaving a photo.
-public struct FlickrFaveRequest: Encodable, Sendable {
+public struct FlickrFaveRequest: Sendable {
     public let photo_id: String
 
     public init(photo_id: String) {
@@ -60,7 +60,7 @@ public struct FlickrFaveRequest: Encodable, Sendable {
 }
 
 /// Request model for posting a comment on a photo.
-public struct FlickrCommentRequest: Encodable, Sendable {
+public struct FlickrCommentRequest: Sendable {
     public let photo_id: String
     public let comment_text: String
 
@@ -71,7 +71,7 @@ public struct FlickrCommentRequest: Encodable, Sendable {
 }
 
 /// Request model for fetching info about a specific photo.
-public struct FlickrInfoRequest: Encodable, Sendable {
+public struct FlickrInfoRequest: Sendable {
     public let photo_id: String
     public let secret: String
 
@@ -102,7 +102,7 @@ public struct Dates: Decodable, Sendable {
 }
 
 /// Request model for fetching comments on a photo.
-public struct FlickrCommentsRequest: Encodable, Sendable {
+public struct FlickrCommentsRequest: Sendable {
     public let photo_id: String
 
     public init(photo_id: String) {
