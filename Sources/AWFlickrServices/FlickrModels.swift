@@ -8,9 +8,14 @@
 /// A single Flickr photo returned from a search or faves response.
 public struct FlickrPhoto: Decodable, Sendable {
     public let id: String
+    /// Owner NSID (e.g. "12345678@N00"). Present in faves responses; may be absent
+    /// in search responses depending on the requested extras parameter.
     public let owner: String?
     public let secret: String
+    /// CDN server number. Combined with `farm` and `id` to build static photo URLs.
     public let server: String
+    /// CDN farm index. Flickr routes image requests across numbered farm subdomains
+    /// (e.g. farm2.staticflickr.com) for load balancing. Used in the URL template.
     public let farm: Int
     public let title: String
 
@@ -25,6 +30,10 @@ public struct FlickrPhoto: Decodable, Sendable {
     }
 }
 
+// Internal decode wrapper for the nested "photos" object in Flickr search responses.
+// Flickr wraps the photo array inside a "photos" key that also carries pagination
+// metadata. All fields except `photo` are optional because Flickr omits them for
+// some API responses and they are not used by the library.
 struct FlickrPhotos: Decodable {
     let page: Int?
     let pages: Int?
@@ -33,6 +42,8 @@ struct FlickrPhotos: Decodable {
     let photo: [FlickrPhoto]
 }
 
+// Top-level JSON envelope for `flickr.photos.search`. The actual photo array is
+// nested at response.photos.photo — two levels of wrapping requiring two structs.
 struct FlickrPhotosResponse: Decodable {
     let photos: FlickrPhotos
 }
@@ -110,6 +121,10 @@ public struct FlickrCommentsRequest: Sendable {
     }
 }
 
+// Internal decode wrappers for `flickr.photos.comments.getList`.
+// The response nests the comment array at response.comments.comment,
+// requiring two struct layers. `comment` is optional because a photo
+// with no comments returns {"comments": {}} — the key is absent entirely.
 struct FlickrCommentsResponse: Decodable {
     let comments: CommentInfo
 }
@@ -121,6 +136,12 @@ struct CommentInfo: Decodable {
 struct Comment: Decodable {
     let content: String
 
+    // Flickr's JSON API uses "_content" for comment text — a legacy convention
+    // carried over from the XML API, where text nodes were represented as
+    // {"_content": "text"} in the JSON serialisation. CodingKeys maps the
+    // wire name to the Swift-idiomatic `content` property. This mapping must
+    // not be removed or reverted to "_content", as that would expose the
+    // legacy wire name in the public-facing model.
     private enum CodingKeys: String, CodingKey {
         case content = "_content"
     }

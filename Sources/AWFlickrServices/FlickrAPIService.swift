@@ -7,6 +7,19 @@
 
 import Foundation
 
+/// Internal HTTP layer for AWFlickrServices.
+///
+/// All public API access flows through the default implementations on
+/// `FlickrPhotosProtocol` and `FlickrOAuthProtocol`, which instantiate a
+/// `FlickrAPIService` using the conforming type's `urlSession`. This type
+/// is intentionally `internal` — it is an implementation detail; consumers
+/// never reference it directly.
+///
+/// ### Session injection
+/// The `session` property is set at `init`. In production `URLSession.shared`
+/// is used via the protocol extension default. In tests a
+/// `URLSessionConfiguration.ephemeral` session backed by `CapturingURLProtocol`
+/// is injected so requests never reach the network.
 struct FlickrAPIService {
 
     let session: URLSession
@@ -24,6 +37,8 @@ struct FlickrAPIService {
             "api_key": apiKey,
             "per_page": String(photosRequest.per_page),
             "page": String(photosRequest.page),
+            // nojsoncallback=1 strips the JSONP wrapper Flickr adds by default.
+            // format=json selects JSON output (the Flickr REST API defaults to XML).
             "nojsoncallback": "1",
             "format": "json",
             "text": photosRequest.text,
@@ -38,6 +53,9 @@ struct FlickrAPIService {
     }
 
     func downloadImageData(from url: URL) async throws -> Data {
+        // returnCacheDataElseLoad: serve from the URL cache when a prior response
+        // exists, avoiding redundant network round-trips for thumbnail grids where
+        // the same photo URL may be requested many times as the user scrolls.
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
         let (data, response) = try await session.data(for: request)
         guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
@@ -227,7 +245,13 @@ struct FlickrAPIService {
 
     /// Decodes `data` into `T`, but first checks for a Flickr API-level error envelope
     /// (`{"stat":"fail","code":...,"message":...}`). Flickr always returns HTTP 200 for
-    /// API errors, so this must be checked before the real decode.
+    /// API-level errors (wrong API key, photo not found, etc.), so the stat check must
+    /// happen *before* attempting the full type decode — otherwise a DecodingError would
+    /// surface instead of the more informative `.apiError(code:message:)`.
+    ///
+    /// `try?` is intentional for the envelope decode: if the response is not JSON at all,
+    /// or is valid JSON of a different shape, the guard simply falls through and the real
+    /// decode attempt follows (which will either succeed or throw its own `DecodingError`).
     private func decodeFlickrJSON<T: Decodable>(_ data: Data) throws -> T {
         if let envelope = try? JSONDecoder().decode(FlickrErrorEnvelope.self, from: data),
            envelope.stat == "fail" {
@@ -239,8 +263,10 @@ struct FlickrAPIService {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
-    /// Checks `data` for a Flickr API-level error (`stat:fail`) without full decoding.
-    /// Used by void-returning POST endpoints (fave, unfave, comment).
+    /// Checks `data` for a Flickr API-level `stat:fail` response without attempting
+    /// a full type decode. Used by void-returning POST endpoints (`fave`, `unfave`,
+    /// `comment`) where there is no expected payload to decode on success — only the
+    /// presence or absence of an error envelope matters.
     private func checkFlickrError(_ data: Data) throws {
         if let envelope = try? JSONDecoder().decode(FlickrErrorEnvelope.self, from: data),
            envelope.stat == "fail" {
@@ -251,6 +277,13 @@ struct FlickrAPIService {
         }
     }
 
+    /// Builds a URL from a base string and an optional dictionary of query parameters.
+    ///
+    /// `URLComponents` is used rather than string concatenation to ensure each key
+    /// and value is individually percent-encoded by Foundation before being joined
+    /// into the query string. Returns `nil` if `urlString` is not a valid URL — in
+    /// practice this cannot occur because all callers pass compile-time constants
+    /// from `FlickrEndpoints`.
     private func generateURL(urlString: String, queryParams: [String: String]? = nil) -> URL? {
         guard let url = URL(string: urlString) else { return nil }
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -260,13 +293,26 @@ struct FlickrAPIService {
         return components?.url
     }
 
+    /// Returns `true` only when `response` is an `HTTPURLResponse` with a 2xx status.
+    ///
+    /// A non-`HTTPURLResponse` should never occur for Flickr API requests (they are
+    /// always HTTP), but the cast is checked rather than forced to avoid a crash on
+    /// any unexpected protocol-level response. Redirects (3xx), client errors (4xx),
+    /// and server errors (5xx) all return `false` and become `.networkError`.
+    /// Flickr API-level failures that arrive as HTTP 200 with a `{"stat":"fail"}` body
+    /// are caught separately by `decodeFlickrJSON` / `checkFlickrError`.
     private func validateHTTPResponse(_ response: URLResponse?) -> Bool {
         guard let http = response as? HTTPURLResponse else { return false }
         return (200..<300).contains(http.statusCode)
     }
 }
 
-// Minimal envelope used to detect Flickr API-level errors before attempting full decodes.
+// Minimal JSON envelope for detecting Flickr API-level errors before attempting
+// a full response decode. Flickr returns HTTP 200 with this shape when a request
+// is valid HTTP but invalid at the API level (wrong key, photo not found, etc.):
+// {"stat": "fail", "code": 100, "message": "Invalid API Key"}.
+// All fields are optional to maximise decode tolerance — only `stat` is strictly
+// required, but missing code/message produce a synthetic -1 / "Unknown error".
 private struct FlickrErrorEnvelope: Decodable {
     let stat: String?
     let code: Int?

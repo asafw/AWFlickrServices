@@ -78,6 +78,11 @@ public extension FlickrPhotosProtocol {
 
     var urlSession: URLSession { .shared }
 
+    // `service` is a computed property (not stored) so the protocol extension
+    // requires no stored state. Each method call creates a lightweight
+    // FlickrAPIService wrapping the conforming type's `urlSession`. Since
+    // FlickrAPIService holds no state beyond the session reference, the
+    // per-call allocation is negligible.
     private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
 
     func getPhotos(
