@@ -408,7 +408,7 @@ A demo app under `Examples/` demonstrates all seven `FlickrPhotosProtocol` metho
 |:-----------:|:-----------:|:-----------:|
 | <img src="screenshots/ios/ios_empty_state.png" width="220"> | <img src="screenshots/ios/ios_signed_in.png" width="220"> | <img src="screenshots/ios/ios_search_results.png" width="220"> |
 | **Photo detail** | **Authenticated search** | **Authenticated detail** |
-| <img src="screenshots/ios/ios_photo_detail.png" width="220"> | <img src="screenshots/ios/ios_search_results_authenticated.png" width="220"> | <img src="screenshots/ios/ios_photo_detail_authenticated.png" width="220"> |
+| <img src="screenshots/ios/ios_photo_detail.png" width="220"> | <img src="screenshots/ios/ios_search_results_authenticated.png" width="220"> | <img src="screenshots/ios/ios_detail_authenticated.png" width="220"> |
 
 #### macOS
 
