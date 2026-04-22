@@ -5,116 +5,145 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-import UIKit
+import Foundation
 
 public protocol FlickrPhotosProtocol {
-    func getPhotos(apiKey: String,
-                   photosRequest: FlickrPhotosRequest,
-                   completion: @escaping (Result<[FlickrPhoto], Error>) -> Void)
-    
-    func getImage(from url: URL,
-                  completion: @escaping (Result<UIImage, Error>) -> Void)
-    
-    func fave(apiKey: String,
-              apiSecret: String,
-              oauthToken: String,
-              oauthTokenSecret: String,
-              faveRequest: FlickrFaveRequest,
-              completion: @escaping (Result<Void, Error>) -> Void)
-    
-    func unfave(apiKey: String,
-                apiSecret: String,
-                oauthToken: String,
-                oauthTokenSecret: String,
-                faveRequest: FlickrFaveRequest,
-                completion: @escaping (Result<Void, Error>) -> Void)
-    
-    func comment(apiKey: String,
-                 apiSecret: String,
-                 oauthToken: String,
-                 oauthTokenSecret: String,
-                 commentRequest: FlickrCommentRequest,
-                 completion: @escaping (Result<Void, Error>) -> Void)
-    
-    func getInfo(apiKey: String,
-                 infoRequest: FlickrInfoRequest,
-                 completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void)
-    
-    func getComments(apiKey: String,
-                     commentsRequest: FlickrCommentsRequest,
-                     completion: @escaping (Result<[String], Error>) -> Void)
+
+    /// The `URLSession` used by the default method implementations.
+    ///
+    /// Override to inject a custom session — for example, a `URLProtocol`-backed
+    /// ephemeral session for unit tests, or a session with a custom
+    /// `URLSessionConfiguration` for production tuning.
+    ///
+    /// ### Design rationale
+    /// The internal `FlickrAPIService` type holds the actual HTTP logic and takes
+    /// a `URLSession` at init. Exposing `FlickrAPIService` publicly would leak an
+    /// implementation detail into the public API surface. Exposing `URLSession`
+    /// instead gives consumers full session control (timeouts, caching, protocol
+    /// interception) without committing to any internal type. The default
+    /// implementation in the protocol extension returns `URLSession.shared`, so
+    /// conforming types that do not need customisation pay zero overhead.
+    var urlSession: URLSession { get }
+
+    /// Searches Flickr for photos matching the given request.
+    func getPhotos(
+        apiKey: String,
+        photosRequest: FlickrPhotosRequest
+    ) async throws -> [FlickrPhoto]
+
+    /// Downloads raw image bytes from the given URL.
+    func downloadImageData(from url: URL) async throws -> Data
+
+    /// Marks a photo as a favourite.
+    func fave(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        faveRequest: FlickrFaveRequest
+    ) async throws
+
+    /// Removes a photo from favourites.
+    func unfave(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        faveRequest: FlickrFaveRequest
+    ) async throws
+
+    /// Posts a comment on a photo.
+    func comment(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        commentRequest: FlickrCommentRequest
+    ) async throws
+
+    /// Fetches metadata for a single photo.
+    func getInfo(
+        apiKey: String,
+        infoRequest: FlickrInfoRequest
+    ) async throws -> FlickrInfoResponse
+
+    /// Returns all comment texts on a photo.
+    func getComments(
+        apiKey: String,
+        commentsRequest: FlickrCommentsRequest
+    ) async throws -> [String]
 }
 
-extension FlickrPhotosProtocol {
-    public func getPhotos(apiKey: String,
-                          photosRequest: FlickrPhotosRequest,
-                          completion: @escaping (Result<[FlickrPhoto], Error>) -> Void) {
-        FlickrAPIRepository().getPhotos(apiKey: apiKey,
-                                        photosRequest: photosRequest,
-                                        completion: completion)
+public extension FlickrPhotosProtocol {
+
+    var urlSession: URLSession { .shared }
+
+    private var service: FlickrAPIService { FlickrAPIService(session: urlSession) }
+
+    func getPhotos(
+        apiKey: String,
+        photosRequest: FlickrPhotosRequest
+    ) async throws -> [FlickrPhoto] {
+        try await service.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
     }
-    
-    public func getImage(from url: URL,
-                         completion: @escaping (Result<UIImage, Error>) -> Void) {
-        FlickrAPIRepository().getImage(from: url,
-                                       completion: completion)
+
+    func downloadImageData(from url: URL) async throws -> Data {
+        try await service.downloadImageData(from: url)
     }
-    
-    public func fave(apiKey: String,
-                     apiSecret: String,
-                     oauthToken: String,
-                     oauthTokenSecret: String,
-                     faveRequest: FlickrFaveRequest,
-                     completion: @escaping (Result<Void, Error>) -> Void) {
-        FlickrAPIRepository().fave(apiKey: apiKey,
-                                   apiSecret: apiSecret,
-                                   oauthToken: oauthToken,
-                                   oauthTokenSecret: oauthTokenSecret,
-                                   faveRequest: faveRequest,
-                                   completion: completion)
+
+    func fave(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        faveRequest: FlickrFaveRequest
+    ) async throws {
+        try await service.fave(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            faveRequest: faveRequest
+        )
     }
-    
-    public func unfave(apiKey: String,
-                       apiSecret: String,
-                       oauthToken: String,
-                       oauthTokenSecret: String,
-                       faveRequest: FlickrFaveRequest,
-                       completion: @escaping (Result<Void, Error>) -> Void) {
-        FlickrAPIRepository().unfave(apiKey: apiKey,
-                                     apiSecret: apiSecret,
-                                     oauthToken: oauthToken,
-                                     oauthTokenSecret: oauthTokenSecret,
-                                     faveRequest: faveRequest,
-                                     completion: completion)
+
+    func unfave(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        faveRequest: FlickrFaveRequest
+    ) async throws {
+        try await service.unfave(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            faveRequest: faveRequest
+        )
     }
-    
-    public func comment(apiKey: String,
-                        apiSecret: String,
-                        oauthToken: String,
-                        oauthTokenSecret: String,
-                        commentRequest: FlickrCommentRequest,
-                        completion: @escaping (Result<Void, Error>) -> Void) {
-        FlickrAPIRepository().comment(apiKey: apiKey,
-                                      apiSecret: apiSecret,
-                                      oauthToken: oauthToken,
-                                      oauthTokenSecret: oauthTokenSecret,
-                                      commentRequest: commentRequest,
-                                      completion: completion)
+
+    func comment(
+        apiKey: String,
+        apiSecret: String,
+        oauthToken: String,
+        oauthTokenSecret: String,
+        commentRequest: FlickrCommentRequest
+    ) async throws {
+        try await service.comment(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            commentRequest: commentRequest
+        )
     }
-    
-    public func getInfo(apiKey: String,
-                        infoRequest: FlickrInfoRequest,
-                        completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void) {
-        FlickrAPIRepository().getInfo(apiKey: apiKey,
-                                      infoRequest: infoRequest,
-                                      completion: completion)
+
+    func getInfo(
+        apiKey: String,
+        infoRequest: FlickrInfoRequest
+    ) async throws -> FlickrInfoResponse {
+        try await service.getInfo(apiKey: apiKey, infoRequest: infoRequest)
     }
-    
-    public func getComments(apiKey: String,
-                            commentsRequest: FlickrCommentsRequest,
-                            completion: @escaping (Result<[String], Error>) -> Void) {
-        FlickrAPIRepository().getComments(apiKey: apiKey,
-                                          commentsRequest: commentsRequest,
-                                          completion: completion)
+
+    func getComments(
+        apiKey: String,
+        commentsRequest: FlickrCommentsRequest
+    ) async throws -> [String] {
+        try await service.getComments(apiKey: apiKey, commentsRequest: commentsRequest)
     }
 }

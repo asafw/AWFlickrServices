@@ -21,15 +21,17 @@ Before ending the conversation, the AI must:
    ```bash
    git add .github/CONTEXT.md .github/instructions/awflickrservices.instructions.md
    git commit -m "docs(context): update session state"
-   git push origin master
+   git push origin v2
    ```
 
 ## Build / test quick reference
 
 ```bash
 cd ~/Desktop/asafw/AWFlickrServices
-swift build
-swift test
+# Unit tests (fast, no network)
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
 ```
 
-All tests must pass after any change. Run `swift test` to verify.
+> `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
+
+All 73 tests must pass after any change.
