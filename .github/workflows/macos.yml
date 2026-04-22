@@ -1,0 +1,29 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [master, v2]
+  pull_request:
+    branches: [master, v2]
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Build
+        run: |
+          xcodebuild -scheme AWFlickrServices \
+            -destination "generic/platform=macOS" \
+            build
+
+      - name: Test
+        run: |
+          xcodebuild -scheme AWFlickrServices \
+            -destination "platform=macOS" \
+            test
