@@ -73,7 +73,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 5)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 5)
         )
         XCTAssertFalse(photos.isEmpty, "Search for 'landscape' should return at least one photo")
         let first = photos[0]
@@ -90,7 +90,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "sunset", page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: "sunset", page: 1, per_page: 3)
         )
         XCTAssertFalse(photos.isEmpty, "Expected photos from 'sunset' search")
         print("✅ Decoded \(photos.count) photo(s) — first title: '\(photos.first?.title ?? "(none)")'")
@@ -103,7 +103,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
@@ -120,13 +120,13 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "architecture", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "architecture", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
         let info = try await repository.getInfo(
             apiKey: key,
-            infoRequest: FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
+            infoRequest: AWFlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
         )
         XCTAssertFalse(info.photo.views.isEmpty, "views field must be present")
         XCTAssertFalse(info.photo.dates.taken.isEmpty, "taken date must be present")
@@ -140,13 +140,13 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "popular", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "popular", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
         let comments = try await repository.getComments(
             apiKey: key,
-            commentsRequest: FlickrCommentsRequest(photo_id: photo.id)
+            commentsRequest: AWFlickrCommentsRequest(photo_id: photo.id)
         )
         // May be empty (no comments on this photo) — that's fine, just verify decoding
         print("✅ getComments OK — \(comments.count) comment(s)")
@@ -159,7 +159,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 3)
         )
         XCTAssertEqual(photos.count, 3, "per_page: 3 should yield exactly 3 photos")
     }
@@ -169,11 +169,11 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         async let page1Photos = repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "nature", page: 1, per_page: 5)
+            photosRequest: AWFlickrPhotosRequest(text: "nature", page: 1, per_page: 5)
         )
         async let page2Photos = repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "nature", page: 2, per_page: 5)
+            photosRequest: AWFlickrPhotosRequest(text: "nature", page: 2, per_page: 5)
         )
         let (p1, p2) = try await (page1Photos, page2Photos)
         let page1IDs = Set(p1.map(\.id))
@@ -191,7 +191,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "golden gate bridge", page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: "golden gate bridge", page: 1, per_page: 3)
         )
         XCTAssertFalse(photos.isEmpty, "Search for 'golden gate bridge' (with spaces) should return photos")
         print("✅ Space-encoded search OK — \(photos.count) result(s)")
@@ -205,10 +205,10 @@ final class FlickrSearchIntegrationTests: XCTestCase {
         do {
             _ = try await repository.getPhotos(
                 apiKey: "000000000000000000000000deadbeef",
-                photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+                photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
             )
             XCTFail("Expected failure for an invalid API key")
-        } catch let apiError as FlickrAPIError {
+        } catch let apiError as AWFlickrAPIError {
             guard case .apiError(let code, let message) = apiError else {
                 XCTFail("Expected .apiError, got \(apiError)")
                 return
@@ -223,7 +223,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
         // Flickr clamps to the last valid page and still returns results — never an error
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 99_999, per_page: 5)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 99_999, per_page: 5)
         )
         _ = photos // Completion without throw proves the behaviour
         print("✅ Page-beyond-total completed without error")
@@ -236,7 +236,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
@@ -251,7 +251,7 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
@@ -274,13 +274,13 @@ final class FlickrSearchIntegrationTests: XCTestCase {
 
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "architecture", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "architecture", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo returned"); return }
 
         let info = try await repository.getInfo(
             apiKey: key,
-            infoRequest: FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
+            infoRequest: AWFlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
         )
         let parsedViews = Int(info.photo.views)
         XCTAssertNotNil(parsedViews, "views '\(info.photo.views)' must be parseable as Int")
@@ -296,15 +296,15 @@ final class FlickrSearchIntegrationTests: XCTestCase {
         // Fire 3 searches concurrently using async let
         async let s1 = repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: terms[0], page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: terms[0], page: 1, per_page: 3)
         )
         async let s2 = repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: terms[1], page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: terms[1], page: 1, per_page: 3)
         )
         async let s3 = repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: terms[2], page: 1, per_page: 3)
+            photosRequest: AWFlickrPhotosRequest(text: terms[2], page: 1, per_page: 3)
         )
         let (r1, r2, r3) = try await (s1, s2, s3)
         let results = [terms[0]: r1.count, terms[1]: r2.count, terms[2]: r3.count]
@@ -395,7 +395,7 @@ final class FlickrOAuthIntegrationTests: XCTestCase {
         // Step 1: find a photo to fave
         let photos = try await repository.getPhotos(
             apiKey: key,
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
         )
         guard let photo = photos.first else { XCTFail("No photo to fave"); return }
 
@@ -404,10 +404,10 @@ final class FlickrOAuthIntegrationTests: XCTestCase {
             try await repository.fave(
                 apiKey: key, apiSecret: secret,
                 oauthToken: token, oauthTokenSecret: tSec,
-                faveRequest: FlickrFaveRequest(photo_id: photo.id)
+                faveRequest: AWFlickrFaveRequest(photo_id: photo.id)
             )
             print("✅ fave succeeded for photo \(photo.id)")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             if case .apiError(let code, _) = error, code == 3 {
                 print("ℹ️  Photo already faved (code 3) — still proves signing works")
             } else {
@@ -420,7 +420,7 @@ final class FlickrOAuthIntegrationTests: XCTestCase {
         try await repository.unfave(
             apiKey: key, apiSecret: secret,
             oauthToken: token, oauthTokenSecret: tSec,
-            faveRequest: FlickrFaveRequest(photo_id: photo.id)
+            faveRequest: AWFlickrFaveRequest(photo_id: photo.id)
         )
         print("✅ unfave succeeded — fave/unfave round trip complete")
     }

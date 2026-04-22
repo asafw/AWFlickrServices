@@ -19,12 +19,12 @@ final class FlickrEndpointsTests: XCTestCase {
 
 final class FlickrPhotoTests: XCTestCase {
 
-    private func makePhoto(farm: Int = 1, server: String = "srv", id: String = "123", secret: String = "abc") -> FlickrPhoto {
+    private func makePhoto(farm: Int = 1, server: String = "srv", id: String = "123", secret: String = "abc") -> AWFlickrPhoto {
         // Decode from JSON to construct the struct without accessing internal init
         let json = """
         {"id":"\(id)","secret":"\(secret)","server":"\(server)","farm":\(farm),"title":"Test"}
         """
-        return try! JSONDecoder().decode(FlickrPhoto.self, from: Data(json.utf8))
+        return try! JSONDecoder().decode(AWFlickrPhoto.self, from: Data(json.utf8))
     }
 
     func testThumbnailURLFormat() {
@@ -49,7 +49,7 @@ final class FlickrPhotoTests: XCTestCase {
 final class FlickrPhotosRequestTests: XCTestCase {
 
     func testPageAndPerPageStoredAsInt() {
-        let request = FlickrPhotosRequest(text: "cats", page: 2, per_page: 25)
+        let request = AWFlickrPhotosRequest(text: "cats", page: 2, per_page: 25)
         XCTAssertEqual(request.page, 2)
         XCTAssertEqual(request.per_page, 25)
         XCTAssertEqual(request.text, "cats")
@@ -70,7 +70,7 @@ final class FlickrModelsDecodingTests: XCTestCase {
           }
         }
         """
-        let response = try JSONDecoder().decode(FlickrInfoResponse.self, from: Data(json.utf8))
+        let response = try JSONDecoder().decode(AWFlickrInfoResponse.self, from: Data(json.utf8))
         XCTAssertEqual(response.photo.owner.realname, "Alice")
         XCTAssertEqual(response.photo.owner.location, "Paris")
         XCTAssertEqual(response.photo.dates.taken, "2020-07-02 10:00:00")
@@ -81,7 +81,7 @@ final class FlickrModelsDecodingTests: XCTestCase {
         let json = """
         {"realname":"Bob"}
         """
-        let owner = try JSONDecoder().decode(Owner.self, from: Data(json.utf8))
+        let owner = try JSONDecoder().decode(AWFlickrOwner.self, from: Data(json.utf8))
         XCTAssertEqual(owner.realname, "Bob")
         XCTAssertNil(owner.location)
     }
@@ -153,7 +153,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         _ = try await repository.getPhotos(
             apiKey: "KEY",
-            photosRequest: FlickrPhotosRequest(text: "mountains", page: 1, per_page: 20)
+            photosRequest: AWFlickrPhotosRequest(text: "mountains", page: 1, per_page: 20)
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.search"), "URL should contain Flickr search method, got: \(url)")
@@ -179,10 +179,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         do {
             _ = try await repository.getPhotos(
                 apiKey: "KEY",
-                photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 10)
+                photosRequest: AWFlickrPhotosRequest(text: "cats", page: 1, per_page: 10)
             )
             XCTFail("Expected networkError for 403")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -197,10 +197,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         do {
             _ = try await repository.getPhotos(
                 apiKey: "BADKEY",
-                photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+                photosRequest: AWFlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -217,10 +217,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
             try await repository.fave(
                 apiKey: "KEY", apiSecret: "SECRET",
                 oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-                faveRequest: FlickrFaveRequest(photo_id: "123")
+                faveRequest: AWFlickrFaveRequest(photo_id: "123")
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 1, message: "Photo not found"),
                 "stat:fail from fave must throw .apiError, not succeed")
         } catch {
@@ -237,10 +237,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
             try await repository.unfave(
                 apiKey: "KEY", apiSecret: "SECRET",
                 oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-                faveRequest: FlickrFaveRequest(photo_id: "123")
+                faveRequest: AWFlickrFaveRequest(photo_id: "123")
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 2, message: "Photo is not in faves"),
                 "stat:fail from unfave must throw .apiError, not succeed")
         } catch {
@@ -257,10 +257,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
             try await repository.comment(
                 apiKey: "KEY", apiSecret: "SECRET",
                 oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-                commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice")
+                commentRequest: AWFlickrCommentRequest(photo_id: "123", comment_text: "nice")
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 1, message: "Photo not found"),
                 "stat:fail from comment must throw .apiError, not succeed")
         } catch {
@@ -276,10 +276,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         do {
             _ = try await repository.getInfo(
                 apiKey: "BADKEY",
-                infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
+                infoRequest: AWFlickrInfoRequest(photo_id: "999", secret: "abc")
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -294,10 +294,10 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         do {
             _ = try await repository.getComments(
                 apiKey: "BADKEY",
-                commentsRequest: FlickrCommentsRequest(photo_id: "999")
+                commentsRequest: AWFlickrCommentsRequest(photo_id: "999")
             )
             XCTFail("Expected apiError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -311,7 +311,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         _ = try await repository.getInfo(
             apiKey: "KEY",
-            infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
+            infoRequest: AWFlickrInfoRequest(photo_id: "999", secret: "abc")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.getInfo"), "URL should contain getInfo method, got: \(url)")
@@ -325,7 +325,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         _ = try await repository.getComments(
             apiKey: "KEY",
-            commentsRequest: FlickrCommentsRequest(photo_id: "777")
+            commentsRequest: AWFlickrCommentsRequest(photo_id: "777")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.comments.getList"), "URL should contain getList method, got: \(url)")
@@ -337,7 +337,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         _ = try? await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "111")
+            faveRequest: AWFlickrFaveRequest(photo_id: "111")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.favorites.add"), "URL should contain favorites.add method, got: \(url)")
@@ -348,7 +348,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         _ = try? await repository.unfave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "222")
+            faveRequest: AWFlickrFaveRequest(photo_id: "222")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.favorites.remove"), "URL should contain favorites.remove method, got: \(url)")
@@ -359,7 +359,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         _ = try? await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            commentRequest: FlickrCommentRequest(photo_id: "333", comment_text: "hello")
+            commentRequest: AWFlickrCommentRequest(photo_id: "333", comment_text: "hello")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.comments.addComment"), "URL should contain addComment method, got: \(url)")
@@ -370,7 +370,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         _ = try? await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            commentRequest: FlickrCommentRequest(photo_id: "444", comment_text: "great photo!")
+            commentRequest: AWFlickrCommentRequest(photo_id: "444", comment_text: "great photo!")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertFalse(url.contains("great photo!"), "Space must be percent-encoded, not passed raw")
@@ -385,7 +385,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         let decoded = try await repository.getPhotos(
             apiKey: "KEY",
-            photosRequest: FlickrPhotosRequest(text: "sunset", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "sunset", page: 1, per_page: 1)
         )
         XCTAssertEqual(decoded.count, 1)
         XCTAssertEqual(decoded.first?.id, "42")
@@ -400,7 +400,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         let decoded = try await repository.getComments(
             apiKey: "KEY",
-            commentsRequest: FlickrCommentsRequest(photo_id: "100")
+            commentsRequest: AWFlickrCommentsRequest(photo_id: "100")
         )
         XCTAssertEqual(decoded, ["first comment", "second comment"])
     }
@@ -412,7 +412,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
 
         let decoded = try await repository.getInfo(
             apiKey: "KEY",
-            infoRequest: FlickrInfoRequest(photo_id: "555", secret: "xyz")
+            infoRequest: AWFlickrInfoRequest(photo_id: "555", secret: "xyz")
         )
         XCTAssertEqual(decoded.photo.owner.realname, "Alice")
         XCTAssertEqual(decoded.photo.owner.location, "London")
@@ -433,7 +433,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         _ = try? await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "999")
+            faveRequest: AWFlickrFaveRequest(photo_id: "999")
         )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("oauth_signature="), "Signed URL must contain oauth_signature, got: \(url)")
@@ -445,7 +445,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         try await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "123")
+            faveRequest: AWFlickrFaveRequest(photo_id: "123")
         )
     }
 
@@ -455,7 +455,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         try await repository.unfave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "123")
+            faveRequest: AWFlickrFaveRequest(photo_id: "123")
         )
     }
 
@@ -465,7 +465,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         try await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice shot!")
+            commentRequest: AWFlickrCommentRequest(photo_id: "123", comment_text: "nice shot!")
         )
     }
 
@@ -479,7 +479,7 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
                 from: URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
             )
             XCTFail("Expected networkError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError,
                 "downloadImageData with HTTP 403 must throw .networkError")
         } catch {
@@ -533,7 +533,7 @@ final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
                 apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth"
             )
             XCTFail("Expected networkError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -564,7 +564,7 @@ final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
                 oauthVerifier: "VER"
             )
             XCTFail("Expected networkError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -611,7 +611,7 @@ final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
                 apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth"
             )
             XCTFail("Expected parsingError")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .parsingError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -820,7 +820,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
     /// implementations with a stubbed `URLSession`. Now that `FlickrPhotosProtocol`
     /// exposes `urlSession` as a requirement, injecting a session is just a stored
     /// property — no method overrides needed.
-    private struct StubBackedService: FlickrPhotosProtocol {
+    private struct StubBackedService: AWFlickrPhotosProtocol {
         let urlSession: URLSession
     }
 
@@ -855,7 +855,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
 
         let photos = try await service.getPhotos(
             apiKey: "KEY",
-            photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
         )
         XCTAssertEqual(photos.count, 1)
         XCTAssertEqual(photos.first?.id, "1")
@@ -869,10 +869,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         do {
             _ = try await service.getPhotos(
                 apiKey: "KEY",
-                photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
+                photosRequest: AWFlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -887,10 +887,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         do {
             _ = try await service.getPhotos(
                 apiKey: "BAD",
-                photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
+                photosRequest: AWFlickrPhotosRequest(text: "cats", page: 1, per_page: 1)
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             if case .apiError(let code, _) = error {
                 XCTAssertEqual(code, 100)
             } else {
@@ -920,7 +920,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         do {
             _ = try await service.downloadImageData(from: url)
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -937,7 +937,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
 
         let response = try await service.getInfo(
             apiKey: "KEY",
-            infoRequest: FlickrInfoRequest(photo_id: "1", secret: "s")
+            infoRequest: AWFlickrInfoRequest(photo_id: "1", secret: "s")
         )
         XCTAssertEqual(response.photo.owner.realname, "Alice")
         XCTAssertEqual(response.photo.views, "42")
@@ -950,10 +950,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         do {
             _ = try await service.getInfo(
                 apiKey: "KEY",
-                infoRequest: FlickrInfoRequest(photo_id: "1", secret: "s")
+                infoRequest: AWFlickrInfoRequest(photo_id: "1", secret: "s")
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -969,7 +969,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
 
         let comments = try await service.getComments(
             apiKey: "KEY",
-            commentsRequest: FlickrCommentsRequest(photo_id: "1")
+            commentsRequest: AWFlickrCommentsRequest(photo_id: "1")
         )
         XCTAssertEqual(comments, ["great shot!", "love it"])
     }
@@ -982,10 +982,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         do {
             _ = try await service.getComments(
                 apiKey: "KEY",
-                commentsRequest: FlickrCommentsRequest(photo_id: "bad")
+                commentsRequest: AWFlickrCommentsRequest(photo_id: "bad")
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             if case .apiError(let code, _) = error {
                 XCTAssertEqual(code, 1)
             } else {
@@ -1009,7 +1009,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         try await service.fave(
             apiKey: "K", apiSecret: "S",
             oauthToken: "T", oauthTokenSecret: "TS",
-            faveRequest: FlickrFaveRequest(photo_id: "1")
+            faveRequest: AWFlickrFaveRequest(photo_id: "1")
         )
     }
 
@@ -1022,10 +1022,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
             try await service.fave(
                 apiKey: "K", apiSecret: "S",
                 oauthToken: "T", oauthTokenSecret: "TS",
-                faveRequest: FlickrFaveRequest(photo_id: "1")
+                faveRequest: AWFlickrFaveRequest(photo_id: "1")
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             if case .apiError(let code, _) = error {
                 XCTAssertEqual(code, 2)
             } else {
@@ -1041,7 +1041,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         try await service.unfave(
             apiKey: "K", apiSecret: "S",
             oauthToken: "T", oauthTokenSecret: "TS",
-            faveRequest: FlickrFaveRequest(photo_id: "1")
+            faveRequest: AWFlickrFaveRequest(photo_id: "1")
         )
     }
 
@@ -1053,10 +1053,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
             try await service.unfave(
                 apiKey: "K", apiSecret: "S",
                 oauthToken: "T", oauthTokenSecret: "TS",
-                faveRequest: FlickrFaveRequest(photo_id: "1")
+                faveRequest: AWFlickrFaveRequest(photo_id: "1")
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             XCTAssertEqual(error, .networkError)
         } catch {
             XCTFail("Unexpected error type: \(error)")
@@ -1068,7 +1068,7 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
         try await service.comment(
             apiKey: "K", apiSecret: "S",
             oauthToken: "T", oauthTokenSecret: "TS",
-            commentRequest: FlickrCommentRequest(photo_id: "1", comment_text: "hello!")
+            commentRequest: AWFlickrCommentRequest(photo_id: "1", comment_text: "hello!")
         )
     }
 
@@ -1081,10 +1081,10 @@ final class FlickrPhotosProtocolAsyncTests: XCTestCase {
             try await service.comment(
                 apiKey: "BAD", apiSecret: "S",
                 oauthToken: "T", oauthTokenSecret: "TS",
-                commentRequest: FlickrCommentRequest(photo_id: "1", comment_text: "hi")
+                commentRequest: AWFlickrCommentRequest(photo_id: "1", comment_text: "hi")
             )
             XCTFail("Expected throw")
-        } catch let error as FlickrAPIError {
+        } catch let error as AWFlickrAPIError {
             if case .apiError(let code, _) = error {
                 XCTAssertEqual(code, 100)
             } else {
@@ -1102,9 +1102,9 @@ final class FlickrServiceTests: XCTestCase {
 
     func testFlickrServiceConformsToBothProtocols() {
         // Compiler-level check: FlickrService must satisfy both protocol requirements.
-        let service = FlickrService()
-        XCTAssertNotNil(service as FlickrPhotosProtocol)
-        XCTAssertNotNil(service as FlickrOAuthProtocol)
+        let service = AWFlickrService()
+        XCTAssertNotNil(service as AWFlickrPhotosProtocol)
+        XCTAssertNotNil(service as AWFlickrOAuthProtocol)
     }
 
     func testFlickrServiceGetPhotosAsyncReturnsPhotos() async throws {
@@ -1117,17 +1117,17 @@ final class FlickrServiceTests: XCTestCase {
         {"photos":{"photo":[{"id":"99","secret":"s","server":"srv","farm":2,"title":"Dog"}],
         "page":1,"pages":1,"perpage":1,"total":1}}
         """.utf8)
-        let service = FlickrService(urlSession: URLSession(configuration: config))
+        let service = AWFlickrService(urlSession: URLSession(configuration: config))
         let photos = try await service.getPhotos(
             apiKey: "key",
-            photosRequest: FlickrPhotosRequest(text: "dog", page: 1, per_page: 1)
+            photosRequest: AWFlickrPhotosRequest(text: "dog", page: 1, per_page: 1)
         )
         XCTAssertEqual(photos.count, 1)
         XCTAssertEqual(photos.first?.id, "99")
     }
 
     func testFlickrServiceIsInstantiableWithNoArguments() {
-        XCTAssertNotNil(FlickrService())
+        XCTAssertNotNil(AWFlickrService())
     }
 }
 

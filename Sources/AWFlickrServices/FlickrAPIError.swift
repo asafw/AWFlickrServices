@@ -5,7 +5,7 @@
 //  Created by Asaf Weinberg on 7/2/20.
 //
 
-public enum FlickrAPIError: Error, Equatable {
+public enum AWFlickrAPIError: Error, Equatable {
     case parsingError
     case networkError
     /// Flickr returned HTTP 200 with `{"stat":"fail","code":...,"message":...}`.

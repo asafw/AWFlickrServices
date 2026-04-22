@@ -17,7 +17,7 @@ private var _webAuthSessionKey = "AWFlickrServices.webAuthSession"
 ///
 /// Conform your type to this protocol to gain the full OAuth flow via the
 /// default implementation in the protocol extension.
-public protocol FlickrOAuthProtocol {
+public protocol AWFlickrOAuthProtocol {
 
     /// The `URLSession` used by the default OAuth flow implementation.
     ///
@@ -37,10 +37,10 @@ public protocol FlickrOAuthProtocol {
         apiKey: String,
         apiSecret: String,
         callbackUrlString: String
-    ) async throws -> AccessTokenResponse
+    ) async throws -> AWAccessTokenResponse
 }
 
-public extension FlickrOAuthProtocol {
+public extension AWFlickrOAuthProtocol {
 
     var urlSession: URLSession { .shared }
 
@@ -51,7 +51,7 @@ public extension FlickrOAuthProtocol {
         apiKey: String,
         apiSecret: String,
         callbackUrlString: String
-    ) async throws -> AccessTokenResponse {
+    ) async throws -> AWAccessTokenResponse {
         let requestToken = try await service.getRequestToken(
             apiKey: apiKey,
             apiSecret: apiSecret,
@@ -61,7 +61,7 @@ public extension FlickrOAuthProtocol {
             + "?oauth_token=" + requestToken.oauth_token
             + "&perms=write"
         guard let authURL = URL(string: urlString) else {
-            throw FlickrAPIError.parsingError
+            throw AWFlickrAPIError.parsingError
         }
         return try await presentAuth(
             context: context,
@@ -80,7 +80,7 @@ public extension FlickrOAuthProtocol {
         oauthTokenSecret: String,
         callbackUrlString: String,
         authURL: URL
-    ) async throws -> AccessTokenResponse {
+    ) async throws -> AWAccessTokenResponse {
         // Bridge ASWebAuthenticationSession's completion-handler API into
         // Swift structured concurrency using a checked throwing continuation.
         // The continuation is resumed exactly once: either with the parsed
@@ -96,7 +96,7 @@ public extension FlickrOAuthProtocol {
                 callbackURLScheme: URL(string: callbackUrlString)?.scheme ?? callbackUrlString
             ) { callbackURL, error in
                 guard error == nil, let successURL = callbackURL else {
-                    continuation.resume(throwing: error ?? FlickrAPIError.networkError)
+                    continuation.resume(throwing: error ?? AWFlickrAPIError.networkError)
                     return
                 }
                 guard
@@ -104,7 +104,7 @@ public extension FlickrOAuthProtocol {
                     let token = components.queryItems?.first(where: { $0.name == "oauth_token" })?.value,
                     let verifier = components.queryItems?.first(where: { $0.name == "oauth_verifier" })?.value
                 else {
-                    continuation.resume(throwing: FlickrAPIError.parsingError)
+                    continuation.resume(throwing: AWFlickrAPIError.parsingError)
                     return
                 }
                 continuation.resume(returning: (token, verifier))

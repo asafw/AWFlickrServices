@@ -24,7 +24,7 @@ struct RequestTokenResponse {
 /// — fields are populated by splitting on `&` and `=` in `FlickrAPIService.getAccessToken`.
 /// The first `=` delimiter is located with `range(of:)` rather than `components(separatedBy:)`
 /// to handle values (such as `oauth_token_secret`) that may contain Base64 padding `=` signs.
-public struct AccessTokenResponse: Sendable {
+public struct AWAccessTokenResponse: Sendable {
     public let fullname: String
     public let oauth_token: String
     public let oauth_token_secret: String

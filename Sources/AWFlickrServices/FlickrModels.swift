@@ -6,7 +6,7 @@
 //
 
 /// A single Flickr photo returned from a search or faves response.
-public struct FlickrPhoto: Decodable, Sendable {
+public struct AWFlickrPhoto: Decodable, Sendable {
     public let id: String
     /// Owner NSID (e.g. "12345678@N00"). Present in faves responses; may be absent
     /// in search responses depending on the requested extras parameter.
@@ -39,7 +39,7 @@ struct FlickrPhotos: Decodable {
     let pages: Int?
     let perpage: Int?
     let total: Int?
-    let photo: [FlickrPhoto]
+    let photo: [AWFlickrPhoto]
 }
 
 // Top-level JSON envelope for `flickr.photos.search`. The actual photo array is
@@ -49,7 +49,7 @@ struct FlickrPhotosResponse: Decodable {
 }
 
 /// Parameters for a Flickr photo search request.
-public struct FlickrPhotosRequest: Sendable {
+public struct AWFlickrPhotosRequest: Sendable {
     public let text: String
     public let page: Int
     public let per_page: Int
@@ -62,7 +62,7 @@ public struct FlickrPhotosRequest: Sendable {
 }
 
 /// Request model for faving or unfaving a photo.
-public struct FlickrFaveRequest: Sendable {
+public struct AWFlickrFaveRequest: Sendable {
     public let photo_id: String
 
     public init(photo_id: String) {
@@ -71,7 +71,7 @@ public struct FlickrFaveRequest: Sendable {
 }
 
 /// Request model for posting a comment on a photo.
-public struct FlickrCommentRequest: Sendable {
+public struct AWFlickrCommentRequest: Sendable {
     public let photo_id: String
     public let comment_text: String
 
@@ -82,7 +82,7 @@ public struct FlickrCommentRequest: Sendable {
 }
 
 /// Request model for fetching info about a specific photo.
-public struct FlickrInfoRequest: Sendable {
+public struct AWFlickrInfoRequest: Sendable {
     public let photo_id: String
     public let secret: String
 
@@ -93,27 +93,27 @@ public struct FlickrInfoRequest: Sendable {
 }
 
 /// Top-level response from `flickr.photos.getInfo`.
-public struct FlickrInfoResponse: Decodable, Sendable {
-    public let photo: PhotoInfo
+public struct AWFlickrInfoResponse: Decodable, Sendable {
+    public let photo: AWFlickrPhotoInfo
 }
 
-public struct PhotoInfo: Decodable, Sendable {
-    public let owner: Owner
-    public let dates: Dates
+public struct AWFlickrPhotoInfo: Decodable, Sendable {
+    public let owner: AWFlickrOwner
+    public let dates: AWFlickrDates
     public let views: String
 }
 
-public struct Owner: Decodable, Sendable {
+public struct AWFlickrOwner: Decodable, Sendable {
     public let realname: String
     public let location: String?
 }
 
-public struct Dates: Decodable, Sendable {
+public struct AWFlickrDates: Decodable, Sendable {
     public let taken: String
 }
 
 /// Request model for fetching comments on a photo.
-public struct FlickrCommentsRequest: Sendable {
+public struct AWFlickrCommentsRequest: Sendable {
     public let photo_id: String
 
     public init(photo_id: String) {
