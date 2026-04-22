@@ -17,9 +17,8 @@ struct FlickrAPIService {
 
     func getPhotos(
         apiKey: String,
-        photosRequest: FlickrPhotosRequest,
-        completion: @escaping (Result<[FlickrPhoto], Error>) -> Void
-    ) {
+        photosRequest: FlickrPhotosRequest
+    ) async throws -> [FlickrPhoto] {
         let queryParams: [String: String] = [
             "method": FlickrEndpoints.searchEndpoint,
             "api_key": apiKey,
@@ -30,83 +29,56 @@ struct FlickrAPIService {
             "text": photosRequest.text,
         ]
         guard let url = generateURL(urlString: FlickrEndpoints.hostURL, queryParams: queryParams) else {
-            completion(.failure(FlickrAPIError.parsingError))
-            return
+            throw FlickrAPIError.parsingError
         }
-        session.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError))
-                return
-            }
-            do {
-                let photosResponse: FlickrPhotosResponse = try decodeFlickrJSON(data)
-                completion(.success(photosResponse.photos.photo))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        let photosResponse: FlickrPhotosResponse = try decodeFlickrJSON(data)
+        return photosResponse.photos.photo
     }
 
-    func downloadImageData(from url: URL, completion: @escaping (Result<Data, Error>) -> Void) {
+    func downloadImageData(from url: URL) async throws -> Data {
         let request = URLRequest(url: url, cachePolicy: .returnCacheDataElseLoad)
-        session.dataTask(with: request) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError))
-                return
-            }
-            completion(.success(data))
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        return data
     }
 
     func getRequestToken(
         apiKey: String,
         apiSecret: String,
-        callbackUrlString: String,
-        completion: @escaping (Result<RequestTokenResponse, Error>) -> Void
-    ) {
+        callbackUrlString: String
+    ) async throws -> RequestTokenResponse {
         guard let url = generateRequestTokenURL(
             apiKey: apiKey,
             apiSecret: apiSecret,
             callbackUrlString: callbackUrlString
-        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
-        session.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError))
-                return
+        ) else { throw FlickrAPIError.parsingError }
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        guard
+            let responseString = String(data: data, encoding: .utf8),
+            let decoded = responseString.removingPercentEncoding
+        else { throw FlickrAPIError.parsingError }
+        var dict = [String: String]()
+        decoded.components(separatedBy: "&").forEach {
+            // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
+            if let range = $0.range(of: "=") {
+                let key = String($0[..<range.lowerBound])
+                let value = String($0[range.upperBound...])
+                if !key.isEmpty { dict[key] = value }
             }
-            guard
-                let responseString = String(data: data, encoding: .utf8),
-                let decoded = responseString.removingPercentEncoding
-            else {
-                completion(.failure(FlickrAPIError.parsingError))
-                return
-            }
-            var dict = [String: String]()
-            decoded.components(separatedBy: "&").forEach {
-                // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
-                if let range = $0.range(of: "=") {
-                    let key = String($0[..<range.lowerBound])
-                    let value = String($0[range.upperBound...])
-                    if !key.isEmpty { dict[key] = value }
-                }
-            }
-            guard
-                let confirmed = dict["oauth_callback_confirmed"],
-                let token = dict["oauth_token"],
-                let secret = dict["oauth_token_secret"]
-            else {
-                completion(.failure(FlickrAPIError.parsingError))
-                return
-            }
-            completion(.success(RequestTokenResponse(
-                oauth_callback_confirmed: confirmed,
-                oauth_token: token,
-                oauth_token_secret: secret
-            )))
-        }.resume()
+        }
+        guard
+            let confirmed = dict["oauth_callback_confirmed"],
+            let token = dict["oauth_token"],
+            let secret = dict["oauth_token_secret"]
+        else { throw FlickrAPIError.parsingError }
+        return RequestTokenResponse(
+            oauth_callback_confirmed: confirmed,
+            oauth_token: token,
+            oauth_token_secret: secret
+        )
     }
 
     func getAccessToken(
@@ -114,56 +86,44 @@ struct FlickrAPIService {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        oauthVerifier: String,
-        completion: @escaping (Result<AccessTokenResponse, Error>) -> Void
-    ) {
+        oauthVerifier: String
+    ) async throws -> AccessTokenResponse {
         guard let url = generateAccessTokenURL(
             apiKey: apiKey,
             apiSecret: apiSecret,
             oauthToken: oauthToken,
             oauthTokenSecret: oauthTokenSecret,
             oauthVerifier: oauthVerifier
-        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
-        session.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError))
-                return
+        ) else { throw FlickrAPIError.parsingError }
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        guard
+            let responseString = String(data: data, encoding: .utf8),
+            let decoded = responseString.removingPercentEncoding
+        else { throw FlickrAPIError.parsingError }
+        var dict = [String: String]()
+        decoded.components(separatedBy: "&").forEach {
+            // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
+            if let range = $0.range(of: "=") {
+                let key = String($0[..<range.lowerBound])
+                let value = String($0[range.upperBound...])
+                if !key.isEmpty { dict[key] = value }
             }
-            guard
-                let responseString = String(data: data, encoding: .utf8),
-                let decoded = responseString.removingPercentEncoding
-            else {
-                completion(.failure(FlickrAPIError.parsingError))
-                return
-            }
-            var dict = [String: String]()
-            decoded.components(separatedBy: "&").forEach {
-                // Split on the first `=` only — values can contain `=` (e.g. base64 padding)
-                if let range = $0.range(of: "=") {
-                    let key = String($0[..<range.lowerBound])
-                    let value = String($0[range.upperBound...])
-                    if !key.isEmpty { dict[key] = value }
-                }
-            }
-            guard
-                let fullName = dict["fullname"],
-                let token = dict["oauth_token"],
-                let tokenSecret = dict["oauth_token_secret"],
-                let nsid = dict["user_nsid"],
-                let username = dict["username"]
-            else {
-                completion(.failure(FlickrAPIError.parsingError))
-                return
-            }
-            completion(.success(AccessTokenResponse(
-                fullname: fullName,
-                oauth_token: token,
-                oauth_token_secret: tokenSecret,
-                user_nsid: nsid,
-                username: username
-            )))
-        }.resume()
+        }
+        guard
+            let fullName = dict["fullname"],
+            let token = dict["oauth_token"],
+            let tokenSecret = dict["oauth_token_secret"],
+            let nsid = dict["user_nsid"],
+            let username = dict["username"]
+        else { throw FlickrAPIError.parsingError }
+        return AccessTokenResponse(
+            fullname: fullName,
+            oauth_token: token,
+            oauth_token_secret: tokenSecret,
+            user_nsid: nsid,
+            username: username
+        )
     }
 
     func fave(
@@ -171,28 +131,18 @@ struct FlickrAPIService {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
+        faveRequest: FlickrFaveRequest
+    ) async throws {
         guard let url = generateFaveURL(
             apiKey: apiKey, apiSecret: apiSecret,
             oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
             photoId: faveRequest.photo_id
-        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
+        ) else { throw FlickrAPIError.parsingError }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError)); return
-            }
-            do {
-                if let data { try checkFlickrError(data) }
-                completion(.success(()))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        try checkFlickrError(data)
     }
 
     func unfave(
@@ -200,28 +150,18 @@ struct FlickrAPIService {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
+        faveRequest: FlickrFaveRequest
+    ) async throws {
         guard let url = generateUnfaveURL(
             apiKey: apiKey, apiSecret: apiSecret,
             oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
             photoId: faveRequest.photo_id
-        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
+        ) else { throw FlickrAPIError.parsingError }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError)); return
-            }
-            do {
-                if let data { try checkFlickrError(data) }
-                completion(.success(()))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        try checkFlickrError(data)
     }
 
     func comment(
@@ -229,35 +169,24 @@ struct FlickrAPIService {
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        commentRequest: FlickrCommentRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
+        commentRequest: FlickrCommentRequest
+    ) async throws {
         guard let url = generateCommentURL(
             apiKey: apiKey, apiSecret: apiSecret,
             oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
             photoId: commentRequest.photo_id, commentText: commentRequest.comment_text
-        ) else { completion(.failure(FlickrAPIError.parsingError)); return }
+        ) else { throw FlickrAPIError.parsingError }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        session.dataTask(with: request) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError)); return
-            }
-            do {
-                if let data { try checkFlickrError(data) }
-                completion(.success(()))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: request)
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        try checkFlickrError(data)
     }
 
     func getInfo(
         apiKey: String,
-        infoRequest: FlickrInfoRequest,
-        completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void
-    ) {
+        infoRequest: FlickrInfoRequest
+    ) async throws -> FlickrInfoResponse {
         let queryParams: [String: String] = [
             "method": FlickrEndpoints.infoEndpoint,
             "api_key": apiKey,
@@ -267,26 +196,17 @@ struct FlickrAPIService {
             "secret": infoRequest.secret,
         ]
         guard let url = generateURL(urlString: FlickrEndpoints.hostURL, queryParams: queryParams) else {
-            completion(.failure(FlickrAPIError.parsingError)); return
+            throw FlickrAPIError.parsingError
         }
-        session.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError)); return
-            }
-            do {
-                completion(.success(try decodeFlickrJSON(data)))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        return try decodeFlickrJSON(data)
     }
 
     func getComments(
         apiKey: String,
-        commentsRequest: FlickrCommentsRequest,
-        completion: @escaping (Result<[String], Error>) -> Void
-    ) {
+        commentsRequest: FlickrCommentsRequest
+    ) async throws -> [String] {
         let queryParams: [String: String] = [
             "method": FlickrEndpoints.commentsEndpoint,
             "api_key": apiKey,
@@ -295,21 +215,12 @@ struct FlickrAPIService {
             "photo_id": commentsRequest.photo_id,
         ]
         guard let url = generateURL(urlString: FlickrEndpoints.hostURL, queryParams: queryParams) else {
-            completion(.failure(FlickrAPIError.parsingError)); return
+            throw FlickrAPIError.parsingError
         }
-        session.dataTask(with: URLRequest(url: url)) { data, response, error in
-            if let error { completion(.failure(error)); return }
-            guard let data, validateHTTPResponse(response) else {
-                completion(.failure(FlickrAPIError.networkError)); return
-            }
-            do {
-                let commentsResponse: FlickrCommentsResponse = try decodeFlickrJSON(data)
-                let comments = commentsResponse.comments.comment?.map { $0.content } ?? []
-                completion(.success(comments))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard validateHTTPResponse(response) else { throw FlickrAPIError.networkError }
+        let commentsResponse: FlickrCommentsResponse = try decodeFlickrJSON(data)
+        return commentsResponse.comments.comment?.map { $0.content } ?? []
     }
 
     // MARK: - Private helpers

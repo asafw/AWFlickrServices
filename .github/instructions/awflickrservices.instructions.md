@@ -38,7 +38,7 @@ AWFlickrServices/
 │   ├── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl (completion + async overloads)
 │   └── FlickrService.swift           ← `public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {}`
 ├── Tests/AWFlickrServicesTests/
-│   └── AWFlickrServicesTests.swift   ← 73 unit tests (10 suites, CapturingURLProtocol stub)
+│   └── AWFlickrServicesTests.swift   ← 74 unit tests (10 suites, CapturingURLProtocol stub)
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI sources (macOS + iOS)
@@ -87,17 +87,17 @@ Each method has both a **completion-handler** overload and an **async/await** ov
 The async overload is a default implementation that calls `withCheckedThrowingContinuation`
 around the completion-handler version.
 
-| Method | OAuth required | Completion return | Async return |
-|---|---|---|---|
-| `getPhotos(apiKey:photosRequest:completion:)` | No | `[FlickrPhoto]` | `throws -> [FlickrPhoto]` |
-| `downloadImageData(from:completion:)` | No | `Data` | `throws -> Data` |
-| `getInfo(apiKey:infoRequest:completion:)` | No | `FlickrInfoResponse` | `throws -> FlickrInfoResponse` |
-| `getComments(apiKey:commentsRequest:completion:)` | No | `[String]` | `throws -> [String]` |
-| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:completion:)` | Yes | `Void` | `throws` |
-| `unfave(...)` | Yes | `Void` | `throws` |
-| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:completion:)` | Yes | `Void` | `throws` |
+| Method | OAuth required | Async signature |
+|---|---|---|
+| `getPhotos(apiKey:photosRequest:)` | No | `throws -> [FlickrPhoto]` |
+| `downloadImageData(from:)` | No | `throws -> Data` |
+| `getInfo(apiKey:infoRequest:)` | No | `throws -> FlickrInfoResponse` |
+| `getComments(apiKey:commentsRequest:)` | No | `throws -> [String]` |
+| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:)` | Yes | `throws` |
+| `unfave(...)` | Yes | `throws` |
+| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:)` | Yes | `throws` |
 
-`FlickrOAuthProtocol.performOAuthFlow` also has an async overload: `throws -> AccessTokenResponse`.
+`FlickrOAuthProtocol.performOAuthFlow` also has an async signature: `throws -> AccessTokenResponse`.
 
 ### `FlickrService`
 
@@ -137,9 +137,7 @@ Convenience concrete type. All behaviour from protocol extension defaults.
   `CommonCrypto` is available system-wide on Apple platforms.
 - **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData(from:completion:)`
   returns `Data`; callers convert to `UIImage`/`NSImage` themselves.
-- **Completion-handler API** — all async network calls use
-  `@escaping (Result<T, Error>) -> Void`. Callbacks fire on the URLSession
-  background queue. Callers must dispatch to the main queue for UI updates.
+- **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods are `async throws`. No completion handlers remain. `URLSession.data(for:)` (iOS 15+/macOS 12+) is used throughout `FlickrAPIService`.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks for `{"stat":"fail",...}` before
   attempting the real type decode and throws `FlickrAPIError.apiError(code:message:)`.
   `checkFlickrError(_:)` does the same for void-returning POST endpoints (`fave`, `unfave`, `comment`).
@@ -168,7 +166,7 @@ Convenience concrete type. All behaviour from protocol extension defaults.
   and a corresponding integration test in `AWFlickrServicesIntegrationTests`.
 - **Integration test credentials** — read from env var or `/tmp/<name>` file via `readCredential(_:)`;
   always skip with `XCTSkipIf` when absent. Never hardcode or commit credentials.
-- **`@discardableResult` not needed** — these are all completion-handler APIs.
+- **`@discardableResult` not needed** — the API is pure `async throws`.
 
 ---
 

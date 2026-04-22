@@ -55,10 +55,8 @@ private struct ThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .task(id: urlString) {
             guard let url = URL(string: urlString) else { return }
-            loader.downloadImageData(from: url) { result in
-                if case .success(let data) = result {
-                    DispatchQueue.main.async { imageData = data }
-                }
+            if let data = try? await loader.downloadImageData(from: url) {
+                imageData = data
             }
         }
     }

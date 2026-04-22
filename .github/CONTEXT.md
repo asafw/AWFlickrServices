@@ -52,8 +52,9 @@ Uses a **protocol mixin pattern** — consumers conform to `FlickrOAuthProtocol`
 | Key-value OAuth response parser | `components(separatedBy:"=")` silently drops values with `=` | splits on first `=` only via `range(of:)` (A9) |
 | `fave`/`unfave`/`comment` on stat:fail 200 | silently returned `.success(())` | calls `checkFlickrError`, throws `.apiError` (A13) |
 | `callbackURLScheme` in `ASWebAuthenticationSession` | full URL string (broke matching on some OS versions) | extracts scheme via `URL(string:)?.scheme` (A14) |
-| Unit tests | placeholder only | 46 tests across 8 suites |
+| Unit tests | placeholder only | 74 tests across 10 suites |
 | Integration tests | none | 16 live tests (2 suites) — skip without credentials |
+| API style | completion handlers (`@escaping (Result<T,Error>) -> Void`) | pure `async throws` — no completion handlers |
 | CI | none | GitHub Actions `ios.yml` |
 
 ---
@@ -109,17 +110,17 @@ AWFlickrServices/
 
 ## Public API surface
 
-### FlickrPhotosProtocol methods
+### FlickrPhotosProtocol methods (all `async throws`)
 
 | Method | OAuth required | Return type |
 |---|---|---|
-| `getPhotos(apiKey:photosRequest:completion:)` | No | `[FlickrPhoto]` |
-| `downloadImageData(from:completion:)` | No | `Data` (`returnCacheDataElseLoad`) |
-| `getInfo(apiKey:infoRequest:completion:)` | No | `FlickrInfoResponse` |
-| `getComments(apiKey:commentsRequest:completion:)` | No | `[String]` |
-| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:completion:)` | Yes | `Void` |
+| `getPhotos(apiKey:photosRequest:)` | No | `[FlickrPhoto]` |
+| `downloadImageData(from:)` | No | `Data` (`returnCacheDataElseLoad`) |
+| `getInfo(apiKey:infoRequest:)` | No | `FlickrInfoResponse` |
+| `getComments(apiKey:commentsRequest:)` | No | `[String]` |
+| `fave(apiKey:apiSecret:oauthToken:oauthTokenSecret:faveRequest:)` | Yes | `Void` |
 | `unfave(...)` | Yes | `Void` |
-| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:completion:)` | Yes | `Void` |
+| `comment(apiKey:apiSecret:oauthToken:oauthTokenSecret:commentRequest:)` | Yes | `Void` |
 
 ### Public models
 
@@ -141,7 +142,8 @@ AWFlickrServices/
 
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
 - **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
-- **Completion-handler API** — `@escaping (Result<T, Error>) -> Void`. Callbacks on URLSession background queue.
+- **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods use `async throws`. No completion handlers remain in the public API.
+- **`URLSession.data(for:)`** — iOS 15+/macOS 12+ async API used in `FlickrAPIService`. Works with `CapturingURLProtocol` in tests.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks stat:fail for GET/decode endpoints (`getPhotos`, `getInfo`, `getComments`); `checkFlickrError(_:)` checks stat:fail for void POST endpoints (`fave`, `unfave`, `comment`). Both throw `.apiError(code:message:)`. All six endpoints have unit test coverage.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`. Request-token step uses `"apiSecret&"` (empty token secret).
 - **RFC 3986 percent-encoding** — unified `rfc3986Encoded(_:)` helper; `alphanumerics ∪ "-._~"` only.
@@ -153,7 +155,7 @@ AWFlickrServices/
 
 ## Tests
 
-### Unit tests — 73 passing
+### Unit tests — 74 passing
 
 | Suite | Count | What it covers |
 |---|---|---|
@@ -161,11 +163,11 @@ AWFlickrServices/
 | `FlickrPhotoTests` | 2 | thumbnail / large URL format |
 | `FlickrPhotosRequestTests` | 1 | page/per_page stored as Int |
 | `FlickrModelsDecodingTests` | 4 | FlickrInfoResponse, Owner nil location, Comment CodingKey, AccessTokenResponse |
-| `FlickrAPIServiceURLBuildingTests` | 25 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success (.success(())), downloadImageData HTTP error, oauth_signature present |
-| `FlickrAPIServiceOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret (both getAccessToken and getRequestToken), A13 stat:fail on fave |
+| `FlickrAPIServiceURLBuildingTests` | 24 | URL params for all 8 methods, cache policy, HTTP 4xx, stat:fail → apiError for getPhotos/getInfo/getComments/fave/unfave/comment, fave/unfave/comment success, downloadImageData HTTP error, oauth_signature present — all `async throws` |
+| `FlickrAPIServiceOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret, missing field → parsingError — all `async throws` |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
-| `FlickrPhotosProtocolAsyncTests` | 15 | async overloads for getPhotos/downloadImageData/getInfo/getComments/fave/unfave/comment — success and error paths via stubbed session |
+| `FlickrPhotosProtocolAsyncTests` | 15 | `StubBackedService` (implements async protocol requirements, delegates to injected `FlickrAPIService`); all 7 protocol methods success and error paths |
 | `FlickrServiceTests` | 3 | `FlickrService` instantiation, conformance to both protocols |
 
 Run unit tests:
@@ -243,6 +245,7 @@ Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone)
 
 ```
 (HEAD — see below after push)
+93bc60a  feat(v2): async/await overloads + FlickrService concrete type (Phase 4)
 be912c9  docs: fix stale branch name in AGENTS.md and screencapture flag in instructions
 a0e0c3c  docs(context): update session state after screenshot refresh
 d1dd608  screenshots: rename authenticated detail to bust GitHub cache
@@ -250,18 +253,16 @@ d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 59cd907  screenshots: rename signed-in screenshot to bust GitHub image cache
 5828365  screenshots: update ios authenticated search results
 14d2b30  refactor: rename FlickrAPIRepository to FlickrAPIService
-be912c9  docs: fix stale branch name and screencapture flag
-a0e0c3c  docs(context): update session state after screenshot refresh
 ```
 
 ---
 
-## Remaining work (Phase 3–4, future)
+## Remaining work
 
-- Phase 3: `FlickrAPIService` injection via protocol (currently instantiated per-method-call in the protocol extensions)
-- Phase 4: ✅ `async`/`await` overloads added to `FlickrPhotosProtocol` and `FlickrOAuthProtocol`
-- Phase 4: ✅ `FlickrService` concrete class added
-- Tag `2.0.0` and merge `v2` → `master` when Phase 3 is complete (or deemed optional)
+- `FlickrAPIService` injection via protocol (currently instantiated per-method-call in the protocol extensions)
+- Tag `2.0.0` and merge `v2` → `master`
+- ✅ Pure `async throws` API — all closure-based API removed (breaking change vs v1)
+- ✅ `FlickrService` concrete class added
 
 
 Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`

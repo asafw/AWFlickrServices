@@ -134,18 +134,17 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
         isLoading = true
         errorMessage = nil
         photos = []
-        getPhotos(
-            apiKey: apiKey,
-            photosRequest: FlickrPhotosRequest(text: searchText, page: 1, per_page: 20)
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isLoading = false
-                switch result {
-                case .success(let fetched):
-                    self?.photos = fetched
-                case .failure(let error):
-                    self?.errorMessage = error.localizedDescription
-                }
+        Task { @MainActor in
+            do {
+                let fetched = try await getPhotos(
+                    apiKey: apiKey,
+                    photosRequest: FlickrPhotosRequest(text: searchText, page: 1, per_page: 20)
+                )
+                isLoading = false
+                photos = fetched
+            } catch {
+                isLoading = false
+                errorMessage = error.localizedDescription
             }
         }
     }
@@ -159,22 +158,21 @@ final class DemoViewModel: ObservableObject, FlickrPhotosProtocol, FlickrOAuthPr
         }
         isSigningIn = true
         authError = nil
-        performOAuthFlow(
-            from: presentationContext,
-            apiKey: apiKey,
-            apiSecret: apiSecret,
-            callbackUrlString: "flickrdemo://oauth"
-        ) { [weak self] result in
-            DispatchQueue.main.async {
-                self?.isSigningIn = false
-                switch result {
-                case .success(let token):
-                    self?.oauthToken = token.oauth_token
-                    self?.oauthTokenSecret = token.oauth_token_secret
-                    self?.signedInAs = token.fullname.isEmpty ? token.username : token.fullname
-                case .failure(let error):
-                    self?.authError = error.localizedDescription
-                }
+        Task { @MainActor in
+            do {
+                let token = try await performOAuthFlow(
+                    from: presentationContext,
+                    apiKey: apiKey,
+                    apiSecret: apiSecret,
+                    callbackUrlString: "flickrdemo://oauth"
+                )
+                isSigningIn = false
+                oauthToken = token.oauth_token
+                oauthTokenSecret = token.oauth_token_secret
+                signedInAs = token.fullname.isEmpty ? token.username : token.fullname
+            } catch {
+                isSigningIn = false
+                authError = error.localizedDescription
             }
         }
     }

@@ -162,31 +162,25 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         super.tearDown()
     }
 
-    func testGetPhotosRequestContainsSearchMethod() {
-        let expectation = expectation(description: "request sent")
+    func testGetPhotosRequestContainsSearchMethod() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"photos":{"photo":[],"page":1,"pages":1,"perpage":20,"total":0}}
         """.utf8)
 
-        repository.getPhotos(
+        _ = try await repository.getPhotos(
             apiKey: "KEY",
             photosRequest: FlickrPhotosRequest(text: "mountains", page: 1, per_page: 20)
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.search"), "URL should contain Flickr search method, got: \(url)")
         XCTAssertTrue(url.contains("mountains"), "URL should contain search text")
     }
 
-    func testDownloadImageDataUsesReturnCacheDataElseLoad() {
-        let expectation = expectation(description: "image request sent")
-        CapturingURLProtocol.stubbedData = Data([0xFF, 0xD8, 0xFF]) // minimal stub bytes
+    func testDownloadImageDataUsesReturnCacheDataElseLoad() async throws {
+        CapturingURLProtocol.stubbedData = Data([0xFF, 0xD8, 0xFF])
 
         let url = URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
-        repository.downloadImageData(from: url) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        _ = try await repository.downloadImageData(from: url)
         XCTAssertEqual(
             CapturingURLProtocol.lastRequest?.cachePolicy,
             .returnCacheDataElseLoad,
@@ -194,407 +188,319 @@ final class FlickrAPIServiceURLBuildingTests: XCTestCase {
         )
     }
 
-    func testHTTP4xxFailsWithNetworkError() {
-        let expectation = expectation(description: "request fails")
+    func testHTTP4xxFailsWithNetworkError() async {
         CapturingURLProtocol.stubbedStatusCode = 403
         CapturingURLProtocol.stubbedData = Data()
 
-        repository.getPhotos(
-            apiKey: "KEY",
-            photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 10)
-        ) { result in
-            if case .failure(let error as FlickrAPIError) = result {
-                XCTAssertEqual(error, .networkError)
-            } else {
-                XCTFail("Expected networkError for 403, got \(result)")
-            }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getPhotos(
+                apiKey: "KEY",
+                photosRequest: FlickrPhotosRequest(text: "cats", page: 1, per_page: 10)
+            )
+            XCTFail("Expected networkError for 403")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .networkError)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-        wait(for: [expectation], timeout: 2)
     }
 
-    func testFlickrAPIStatFailReturnsAPIError() {
-        let expectation = expectation(description: "stat fail handled")
-        // Flickr returns HTTP 200 with this shape when the API key is invalid.
+    func testFlickrAPIStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.getPhotos(
-            apiKey: "BADKEY",
-            photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getPhotos(
+                apiKey: "BADKEY",
+                photosRequest: FlickrPhotosRequest(text: "landscape", page: 1, per_page: 1)
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
     }
 
-    /// A13: fave returning stat:fail (HTTP 200) must propagate as .failure, not silently succeed.
-    func testFaveStatFailReturnsAPIError() {
-        let expectation = expectation(description: "fave stat:fail")
+    /// A13: fave returning stat:fail (HTTP 200) must throw, not silently succeed.
+    func testFaveStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":1,"message":"Photo not found"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.fave(
-            apiKey: "KEY", apiSecret: "SECRET",
-            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "123")
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            try await repository.fave(
+                apiKey: "KEY", apiSecret: "SECRET",
+                oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+                faveRequest: FlickrFaveRequest(photo_id: "123")
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 1, message: "Photo not found"),
+                "stat:fail from fave must throw .apiError, not succeed")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 1, message: "Photo not found"),
-            "stat:fail from fave must surface as .apiError, not .success")
     }
 
-    func testUnfaveStatFailReturnsAPIError() {
-        let expectation = expectation(description: "unfave stat:fail")
+    func testUnfaveStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":2,"message":"Photo is not in faves"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.unfave(
-            apiKey: "KEY", apiSecret: "SECRET",
-            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            faveRequest: FlickrFaveRequest(photo_id: "123")
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            try await repository.unfave(
+                apiKey: "KEY", apiSecret: "SECRET",
+                oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+                faveRequest: FlickrFaveRequest(photo_id: "123")
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 2, message: "Photo is not in faves"),
+                "stat:fail from unfave must throw .apiError, not succeed")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 2, message: "Photo is not in faves"),
-            "stat:fail from unfave must surface as .apiError, not .success")
     }
 
-    func testCommentStatFailReturnsAPIError() {
-        let expectation = expectation(description: "comment stat:fail")
+    func testCommentStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":1,"message":"Photo not found"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.comment(
-            apiKey: "KEY", apiSecret: "SECRET",
-            oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
-            commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice")
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            try await repository.comment(
+                apiKey: "KEY", apiSecret: "SECRET",
+                oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
+                commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice")
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 1, message: "Photo not found"),
+                "stat:fail from comment must throw .apiError, not succeed")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 1, message: "Photo not found"),
-            "stat:fail from comment must surface as .apiError, not .success")
     }
 
-    func testGetInfoStatFailReturnsAPIError() {
-        let expectation = expectation(description: "getInfo stat:fail")
+    func testGetInfoStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.getInfo(
-            apiKey: "BADKEY",
-            infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getInfo(
+                apiKey: "BADKEY",
+                infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
     }
 
-    func testGetCommentsStatFailReturnsAPIError() {
-        let expectation = expectation(description: "getComments stat:fail")
+    func testGetCommentsStatFailReturnsAPIError() async {
         CapturingURLProtocol.stubbedData = Data("""
         {"stat":"fail","code":100,"message":"Invalid API Key (Key has invalid format)"}
         """.utf8)
 
-        var receivedError: FlickrAPIError?
-        repository.getComments(
-            apiKey: "BADKEY",
-            commentsRequest: FlickrCommentsRequest(photo_id: "999")
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getComments(
+                apiKey: "BADKEY",
+                commentsRequest: FlickrCommentsRequest(photo_id: "999")
+            )
+            XCTFail("Expected apiError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .apiError(code: 100, message: "Invalid API Key (Key has invalid format)"))
     }
 
-    func testGetInfoRequestContainsInfoMethod() {
-        let expectation = expectation(description: "request sent")
+    func testGetInfoRequestContainsInfoMethod() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"photo":{"owner":{"realname":"Test"},"dates":{"taken":"2020-01-01"},"views":"5"}}
         """.utf8)
 
-        repository.getInfo(
+        _ = try await repository.getInfo(
             apiKey: "KEY",
             infoRequest: FlickrInfoRequest(photo_id: "999", secret: "abc")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.getInfo"), "URL should contain getInfo method, got: \(url)")
         XCTAssertTrue(url.contains("photo_id=999"))
     }
 
-    func testGetCommentsRequestContainsCommentsMethod() {
-        let expectation = expectation(description: "request sent")
+    func testGetCommentsRequestContainsCommentsMethod() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"comments":{"comment":[{"_content":"nice!"}]}}
         """.utf8)
 
-        repository.getComments(
+        _ = try await repository.getComments(
             apiKey: "KEY",
             commentsRequest: FlickrCommentsRequest(photo_id: "777")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.comments.getList"), "URL should contain getList method, got: \(url)")
         XCTAssertTrue(url.contains("photo_id=777"))
     }
 
-    func testFaveRequestContainsFaveMethod() {
-        let expectation = expectation(description: "request sent")
-
-        repository.fave(
+    func testFaveRequestContainsFaveMethod() async throws {
+        // try? — we only care that the request was sent, not about the empty-body parse
+        _ = try? await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             faveRequest: FlickrFaveRequest(photo_id: "111")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.favorites.add"), "URL should contain favorites.add method, got: \(url)")
         XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
     }
 
-    func testUnfaveRequestContainsUnfaveMethod() {
-        let expectation = expectation(description: "request sent")
-
-        repository.unfave(
+    func testUnfaveRequestContainsUnfaveMethod() async throws {
+        _ = try? await repository.unfave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             faveRequest: FlickrFaveRequest(photo_id: "222")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.favorites.remove"), "URL should contain favorites.remove method, got: \(url)")
         XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
     }
 
-    func testCommentRequestContainsCommentMethod() {
-        let expectation = expectation(description: "request sent")
-
-        repository.comment(
+    func testCommentRequestContainsCommentMethod() async throws {
+        _ = try? await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             commentRequest: FlickrCommentRequest(photo_id: "333", comment_text: "hello")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("flickr.photos.comments.addComment"), "URL should contain addComment method, got: \(url)")
         XCTAssertEqual(CapturingURLProtocol.lastRequest?.httpMethod, "POST")
     }
 
-    func testCommentTextWithSpacesIsRFC3986Encoded() {
-        let expectation = expectation(description: "request sent")
-
-        repository.comment(
+    func testCommentTextWithSpacesIsRFC3986Encoded() async throws {
+        _ = try? await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             commentRequest: FlickrCommentRequest(photo_id: "444", comment_text: "great photo!")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertFalse(url.contains("great photo!"), "Space must be percent-encoded, not passed raw")
         XCTAssertTrue(url.contains("great%20photo") || url.contains("great+photo") == false,
                       "Space should be %20-encoded per RFC 3986, got: \(url)")
     }
 
-    func testGetPhotosReturnsDecodedPhotoArray() {
-        let expectation = expectation(description: "photos decoded")
+    func testGetPhotosReturnsDecodedPhotoArray() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"photos":{"photo":[{"id":"42","secret":"s3cr3t","server":"66666","farm":4,"title":"Sunset"}],"page":1,"pages":1,"perpage":1,"total":1}}
         """.utf8)
 
-        var decoded: [FlickrPhoto] = []
-        repository.getPhotos(
+        let decoded = try await repository.getPhotos(
             apiKey: "KEY",
             photosRequest: FlickrPhotosRequest(text: "sunset", page: 1, per_page: 1)
-        ) { result in
-            if case .success(let photos) = result { decoded = photos }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
+        )
         XCTAssertEqual(decoded.count, 1)
         XCTAssertEqual(decoded.first?.id, "42")
         XCTAssertEqual(decoded.first?.secret, "s3cr3t")
         XCTAssertEqual(decoded.first?.title, "Sunset")
     }
 
-    func testGetCommentsReturnsDecodedStringArray() {
-        let expectation = expectation(description: "comments decoded")
+    func testGetCommentsReturnsDecodedStringArray() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"comments":{"comment":[{"_content":"first comment"},{"_content":"second comment"}]}}
         """.utf8)
 
-        var decoded: [String] = []
-        repository.getComments(
+        let decoded = try await repository.getComments(
             apiKey: "KEY",
             commentsRequest: FlickrCommentsRequest(photo_id: "100")
-        ) { result in
-            if case .success(let comments) = result { decoded = comments }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
+        )
         XCTAssertEqual(decoded, ["first comment", "second comment"])
     }
 
-    func testGetInfoReturnsDecodedResponse() {
-        let expectation = expectation(description: "info decoded")
+    func testGetInfoReturnsDecodedResponse() async throws {
         CapturingURLProtocol.stubbedData = Data("""
         {"photo":{"owner":{"realname":"Alice","location":"London"},"dates":{"taken":"2021-06-15 12:00:00"},"views":"99"}}
         """.utf8)
 
-        var decoded: FlickrInfoResponse?
-        repository.getInfo(
+        let decoded = try await repository.getInfo(
             apiKey: "KEY",
             infoRequest: FlickrInfoRequest(photo_id: "555", secret: "xyz")
-        ) { result in
-            if case .success(let info) = result { decoded = info }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(decoded?.photo.owner.realname, "Alice")
-        XCTAssertEqual(decoded?.photo.owner.location, "London")
-        XCTAssertEqual(decoded?.photo.views, "99")
+        )
+        XCTAssertEqual(decoded.photo.owner.realname, "Alice")
+        XCTAssertEqual(decoded.photo.owner.location, "London")
+        XCTAssertEqual(decoded.photo.views, "99")
     }
 
-    func testDownloadImageDataReturnsBytes() {
-        let expectation = expectation(description: "data returned")
+    func testDownloadImageDataReturnsBytes() async throws {
         let stubBytes = Data([0xDE, 0xAD, 0xBE, 0xEF])
         CapturingURLProtocol.stubbedData = stubBytes
 
-        var returned: Data?
-        repository.downloadImageData(from: URL(string: "https://farm1.staticflickr.com/1/1_b_s.jpg")!) { result in
-            if case .success(let data) = result { returned = data }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
+        let returned = try await repository.downloadImageData(
+            from: URL(string: "https://farm1.staticflickr.com/1/1_b_s.jpg")!
+        )
         XCTAssertEqual(returned, stubBytes)
     }
 
-    func testSignedURLContainsOAuthSignature() {
-        let expectation = expectation(description: "request sent")
-
-        repository.fave(
+    func testSignedURLContainsOAuthSignature() async throws {
+        _ = try? await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             faveRequest: FlickrFaveRequest(photo_id: "999")
-        ) { _ in expectation.fulfill() }
-
-        wait(for: [expectation], timeout: 2)
+        )
         let url = CapturingURLProtocol.lastRequest?.url?.absoluteString ?? ""
         XCTAssertTrue(url.contains("oauth_signature="), "Signed URL must contain oauth_signature, got: \(url)")
     }
 
-    // B1 – fave 200 OK with {"stat":"ok"} must call back with .success(())
-    func testFaveSuccessReturnsVoid() {
-        let expectation = expectation(description: "fave success")
+    // B1 – fave 200 OK with {"stat":"ok"} must succeed without throwing
+    func testFaveSuccessReturnsVoid() async throws {
         CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
-
-        var succeeded = false
-        repository.fave(
+        try await repository.fave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             faveRequest: FlickrFaveRequest(photo_id: "123")
-        ) { result in
-            if case .success = result { succeeded = true }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertTrue(succeeded, "fave with HTTP 200 + stat:ok must call back with .success(())")
+        )
     }
 
-    // B2 – unfave 200 OK with {"stat":"ok"} must call back with .success(())
-    func testUnfaveSuccessReturnsVoid() {
-        let expectation = expectation(description: "unfave success")
+    // B2 – unfave 200 OK with {"stat":"ok"} must succeed without throwing
+    func testUnfaveSuccessReturnsVoid() async throws {
         CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
-
-        var succeeded = false
-        repository.unfave(
+        try await repository.unfave(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             faveRequest: FlickrFaveRequest(photo_id: "123")
-        ) { result in
-            if case .success = result { succeeded = true }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertTrue(succeeded, "unfave with HTTP 200 + stat:ok must call back with .success(())")
+        )
     }
 
-    // B3 – comment 200 OK with {"stat":"ok"} must call back with .success(())
-    func testCommentSuccessReturnsVoid() {
-        let expectation = expectation(description: "comment success")
+    // B3 – comment 200 OK with {"stat":"ok"} must succeed without throwing
+    func testCommentSuccessReturnsVoid() async throws {
         CapturingURLProtocol.stubbedData = Data(#"{"stat":"ok"}"#.utf8)
-
-        var succeeded = false
-        repository.comment(
+        try await repository.comment(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "TOK", oauthTokenSecret: "TOKSEC",
             commentRequest: FlickrCommentRequest(photo_id: "123", comment_text: "nice shot!")
-        ) { result in
-            if case .success = result { succeeded = true }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertTrue(succeeded, "comment with HTTP 200 + stat:ok must call back with .success(())")
+        )
     }
 
-    // B4 – downloadImageData with non-200 HTTP status must return .networkError
-    func testDownloadImageDataHTTPErrorReturnsNetworkError() {
-        let expectation = expectation(description: "download HTTP error")
+    // B4 – downloadImageData with non-200 HTTP status must throw .networkError
+    func testDownloadImageDataHTTPErrorReturnsNetworkError() async {
         CapturingURLProtocol.stubbedStatusCode = 403
         CapturingURLProtocol.stubbedData = Data()
 
-        var receivedError: FlickrAPIError?
-        repository.downloadImageData(
-            from: URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.downloadImageData(
+                from: URL(string: "https://farm1.staticflickr.com/1/1_a_s.jpg")!
+            )
+            XCTFail("Expected networkError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .networkError,
+                "downloadImageData with HTTP 403 must throw .networkError")
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .networkError,
-            "downloadImageData with HTTP 403 must return .networkError")
     }
 }
 
@@ -623,120 +529,109 @@ final class FlickrAPIServiceOAuthParsingTests: XCTestCase {
         super.tearDown()
     }
 
-    func testGetRequestTokenParsesKeyValueResponse() {
-        let expectation = expectation(description: "request token parsed")
-        // Flickr returns URL-encoded key=value pairs
+    func testGetRequestTokenParsesKeyValueResponse() async throws {
         let responseBody = "oauth_callback_confirmed=true&oauth_token=REQ_TOK&oauth_token_secret=REQ_SEC"
         CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
 
-        var decoded: RequestTokenResponse?
-        repository.getRequestToken(apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth") { result in
-            if case .success(let token) = result { decoded = token }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(decoded?.oauth_token, "REQ_TOK")
-        XCTAssertEqual(decoded?.oauth_token_secret, "REQ_SEC")
-        XCTAssertEqual(decoded?.oauth_callback_confirmed, "true")
+        let decoded = try await repository.getRequestToken(
+            apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth"
+        )
+        XCTAssertEqual(decoded.oauth_token, "REQ_TOK")
+        XCTAssertEqual(decoded.oauth_token_secret, "REQ_SEC")
+        XCTAssertEqual(decoded.oauth_callback_confirmed, "true")
     }
 
-    func testGetRequestTokenHTTPErrorReturnsNetworkError() {
-        let expectation = expectation(description: "network error")
+    func testGetRequestTokenHTTPErrorReturnsNetworkError() async {
         CapturingURLProtocol.stubbedStatusCode = 401
 
-        var receivedError: FlickrAPIError?
-        repository.getRequestToken(apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth") { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getRequestToken(
+                apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth"
+            )
+            XCTFail("Expected networkError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .networkError)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .networkError)
     }
 
-    func testGetAccessTokenParsesKeyValueResponse() {
-        let expectation = expectation(description: "access token parsed")
+    func testGetAccessTokenParsesKeyValueResponse() async throws {
         let responseBody = "fullname=Alice%20Flickr&oauth_token=ACC_TOK&oauth_token_secret=ACC_SEC&user_nsid=99%40N00&username=alice"
         CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
 
-        var decoded: AccessTokenResponse?
-        repository.getAccessToken(
+        let decoded = try await repository.getAccessToken(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "REQ_TOK", oauthTokenSecret: "REQ_SEC",
             oauthVerifier: "VERIFIER"
-        ) { result in
-            if case .success(let token) = result { decoded = token }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(decoded?.oauth_token, "ACC_TOK")
-        XCTAssertEqual(decoded?.oauth_token_secret, "ACC_SEC")
-        XCTAssertEqual(decoded?.username, "alice")
+        )
+        XCTAssertEqual(decoded.oauth_token, "ACC_TOK")
+        XCTAssertEqual(decoded.oauth_token_secret, "ACC_SEC")
+        XCTAssertEqual(decoded.username, "alice")
     }
 
-    func testGetAccessTokenHTTPErrorReturnsNetworkError() {
-        let expectation = expectation(description: "network error")
+    func testGetAccessTokenHTTPErrorReturnsNetworkError() async {
         CapturingURLProtocol.stubbedStatusCode = 500
 
-        var receivedError: FlickrAPIError?
-        repository.getAccessToken(
-            apiKey: "KEY", apiSecret: "SECRET",
-            oauthToken: "TOK", oauthTokenSecret: "SEC",
-            oauthVerifier: "VER"
-        ) { result in
-            if case .failure(let e as FlickrAPIError) = result { receivedError = e }
-            expectation.fulfill()
+        do {
+            _ = try await repository.getAccessToken(
+                apiKey: "KEY", apiSecret: "SECRET",
+                oauthToken: "TOK", oauthTokenSecret: "SEC",
+                oauthVerifier: "VER"
+            )
+            XCTFail("Expected networkError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .networkError)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
         }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(receivedError, .networkError)
     }
 
     /// A9: token secrets can contain `=` (base64 padding). The parser must split on the
     /// first `=` only, not discard pairs where the value contains additional `=` characters.
-    func testAccessTokenSecretWithEqualsSignIsParsed() {
-        let expectation = expectation(description: "token with = parsed")
-        // oauth_token_secret value contains a trailing `=` (base64 padding)
+    func testAccessTokenSecretWithEqualsSignIsParsed() async throws {
         let responseBody = "fullname=Alice&oauth_token=TOK&oauth_token_secret=SEC==&user_nsid=1@N00&username=alice"
         CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
 
-        var decoded: AccessTokenResponse?
-        repository.getAccessToken(
+        let decoded = try await repository.getAccessToken(
             apiKey: "KEY", apiSecret: "SECRET",
             oauthToken: "REQ", oauthTokenSecret: "REQSEC",
             oauthVerifier: "VER"
-        ) { result in
-            if case .success(let token) = result { decoded = token }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(decoded?.oauth_token_secret, "SEC==",
+        )
+        XCTAssertEqual(decoded.oauth_token_secret, "SEC==",
             "oauth_token_secret with '=' padding must be parsed correctly")
-        XCTAssertEqual(decoded?.oauth_token, "TOK")
+        XCTAssertEqual(decoded.oauth_token, "TOK")
     }
 
     /// A9 regression (request-token side): token secret with `=` padding must not be truncated.
-    func testRequestTokenSecretWithEqualsSignIsParsed() {
-        let expectation = expectation(description: "request token with = parsed")
+    func testRequestTokenSecretWithEqualsSignIsParsed() async throws {
         let responseBody = "oauth_callback_confirmed=true&oauth_token=REQ_TOK&oauth_token_secret=RSEC=="
         CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
 
-        var decoded: RequestTokenResponse?
-        repository.getRequestToken(
+        let decoded = try await repository.getRequestToken(
             apiKey: "KEY", apiSecret: "SECRET",
             callbackUrlString: "myapp://oauth"
-        ) { result in
-            if case .success(let token) = result { decoded = token }
-            expectation.fulfill()
-        }
-
-        wait(for: [expectation], timeout: 2)
-        XCTAssertEqual(decoded?.oauth_token_secret, "RSEC==",
+        )
+        XCTAssertEqual(decoded.oauth_token_secret, "RSEC==",
             "request token secret with '=' padding must be preserved (split on first = only)")
-        XCTAssertEqual(decoded?.oauth_token, "REQ_TOK")
+        XCTAssertEqual(decoded.oauth_token, "REQ_TOK")
+    }
+
+    func testGetRequestTokenMissingFieldThrowsParsingError() async {
+        // Response missing oauth_token_secret — should throw parsingError
+        let responseBody = "oauth_callback_confirmed=true&oauth_token=REQ_TOK"
+        CapturingURLProtocol.stubbedData = Data(responseBody.utf8)
+
+        do {
+            _ = try await repository.getRequestToken(
+                apiKey: "KEY", apiSecret: "SECRET", callbackUrlString: "myapp://oauth"
+            )
+            XCTFail("Expected parsingError")
+        } catch let error as FlickrAPIError {
+            XCTAssertEqual(error, .parsingError)
+        } catch {
+            XCTFail("Unexpected error type: \(error)")
+        }
     }
 }
 
@@ -942,45 +837,64 @@ final class OAuthUtilitiesTests: XCTestCase {
 /// network required.
 final class FlickrPhotosProtocolAsyncTests: XCTestCase {
 
-    /// A concrete conforming type whose completion-handler methods delegate to an
-    /// injected `FlickrAPIService`. The async overloads (default protocol extension
-    /// implementations) therefore go through the stubbed session automatically.
+    /// A concrete conforming type that delegates all async protocol methods to
+    /// an injected `FlickrAPIService` with a stubbed URLSession.
     private struct StubBackedService: FlickrPhotosProtocol {
         let svc: FlickrAPIService
 
-        func getPhotos(apiKey: String, photosRequest: FlickrPhotosRequest,
-                       completion: @escaping (Result<[FlickrPhoto], Error>) -> Void) {
-            svc.getPhotos(apiKey: apiKey, photosRequest: photosRequest, completion: completion)
+        func getPhotos(
+            apiKey: String,
+            photosRequest: FlickrPhotosRequest
+        ) async throws -> [FlickrPhoto] {
+            try await svc.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
         }
-        func downloadImageData(from url: URL,
-                               completion: @escaping (Result<Data, Error>) -> Void) {
-            svc.downloadImageData(from: url, completion: completion)
+        func downloadImageData(from url: URL) async throws -> Data {
+            try await svc.downloadImageData(from: url)
         }
-        func fave(apiKey: String, apiSecret: String, oauthToken: String, oauthTokenSecret: String,
-                  faveRequest: FlickrFaveRequest,
-                  completion: @escaping (Result<Void, Error>) -> Void) {
-            svc.fave(apiKey: apiKey, apiSecret: apiSecret, oauthToken: oauthToken,
-                     oauthTokenSecret: oauthTokenSecret, faveRequest: faveRequest, completion: completion)
+        func fave(
+            apiKey: String, apiSecret: String,
+            oauthToken: String, oauthTokenSecret: String,
+            faveRequest: FlickrFaveRequest
+        ) async throws {
+            try await svc.fave(
+                apiKey: apiKey, apiSecret: apiSecret,
+                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+                faveRequest: faveRequest
+            )
         }
-        func unfave(apiKey: String, apiSecret: String, oauthToken: String, oauthTokenSecret: String,
-                    faveRequest: FlickrFaveRequest,
-                    completion: @escaping (Result<Void, Error>) -> Void) {
-            svc.unfave(apiKey: apiKey, apiSecret: apiSecret, oauthToken: oauthToken,
-                       oauthTokenSecret: oauthTokenSecret, faveRequest: faveRequest, completion: completion)
+        func unfave(
+            apiKey: String, apiSecret: String,
+            oauthToken: String, oauthTokenSecret: String,
+            faveRequest: FlickrFaveRequest
+        ) async throws {
+            try await svc.unfave(
+                apiKey: apiKey, apiSecret: apiSecret,
+                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+                faveRequest: faveRequest
+            )
         }
-        func comment(apiKey: String, apiSecret: String, oauthToken: String, oauthTokenSecret: String,
-                     commentRequest: FlickrCommentRequest,
-                     completion: @escaping (Result<Void, Error>) -> Void) {
-            svc.comment(apiKey: apiKey, apiSecret: apiSecret, oauthToken: oauthToken,
-                        oauthTokenSecret: oauthTokenSecret, commentRequest: commentRequest, completion: completion)
+        func comment(
+            apiKey: String, apiSecret: String,
+            oauthToken: String, oauthTokenSecret: String,
+            commentRequest: FlickrCommentRequest
+        ) async throws {
+            try await svc.comment(
+                apiKey: apiKey, apiSecret: apiSecret,
+                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+                commentRequest: commentRequest
+            )
         }
-        func getInfo(apiKey: String, infoRequest: FlickrInfoRequest,
-                     completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void) {
-            svc.getInfo(apiKey: apiKey, infoRequest: infoRequest, completion: completion)
+        func getInfo(
+            apiKey: String,
+            infoRequest: FlickrInfoRequest
+        ) async throws -> FlickrInfoResponse {
+            try await svc.getInfo(apiKey: apiKey, infoRequest: infoRequest)
         }
-        func getComments(apiKey: String, commentsRequest: FlickrCommentsRequest,
-                         completion: @escaping (Result<[String], Error>) -> Void) {
-            svc.getComments(apiKey: apiKey, commentsRequest: commentsRequest, completion: completion)
+        func getComments(
+            apiKey: String,
+            commentsRequest: FlickrCommentsRequest
+        ) async throws -> [String] {
+            try await svc.getComments(apiKey: apiKey, commentsRequest: commentsRequest)
         }
     }
 

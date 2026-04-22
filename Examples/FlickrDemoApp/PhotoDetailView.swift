@@ -180,26 +180,20 @@ struct PhotoDetailView: View {
         #endif
 
         if let url = URL(string: photo.largePhotoURLString()) {
-            service.downloadImageData(from: url) { result in
-                if case .success(let data) = result {
-                    DispatchQueue.main.async { imageData = data }
-                }
+            if let data = try? await service.downloadImageData(from: url) {
+                imageData = data
             }
         }
 
         let infoRequest = FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
-        service.getInfo(apiKey: viewModel.apiKey, infoRequest: infoRequest) { result in
-            DispatchQueue.main.async {
-                isLoadingInfo = false
-                if case .success(let fetched) = result { info = fetched }
-            }
+        if let fetched = try? await service.getInfo(apiKey: viewModel.apiKey, infoRequest: infoRequest) {
+            isLoadingInfo = false
+            info = fetched
         }
 
         let commentsRequest = FlickrCommentsRequest(photo_id: photo.id)
-        service.getComments(apiKey: viewModel.apiKey, commentsRequest: commentsRequest) { result in
-            if case .success(let fetched) = result {
-                DispatchQueue.main.async { comments = fetched }
-            }
+        if let fetched = try? await service.getComments(apiKey: viewModel.apiKey, commentsRequest: commentsRequest) {
+            comments = fetched
         }
     }
 
@@ -209,38 +203,31 @@ struct PhotoDetailView: View {
         isFaving = true
         actionError = nil
         let request = FlickrFaveRequest(photo_id: photo.id)
-        if isFaved {
-            service.unfave(
-                apiKey: viewModel.apiKey,
-                apiSecret: viewModel.apiSecret,
-                oauthToken: viewModel.oauthToken,
-                oauthTokenSecret: viewModel.oauthTokenSecret,
-                faveRequest: request
-            ) { result in
-                DispatchQueue.main.async {
-                    isFaving = false
-                    switch result {
-                    case .success: isFaved = false
-                    case .failure(let error): actionError = error.localizedDescription
-                    }
+        Task { @MainActor in
+            do {
+                if isFaved {
+                    try await service.unfave(
+                        apiKey: viewModel.apiKey,
+                        apiSecret: viewModel.apiSecret,
+                        oauthToken: viewModel.oauthToken,
+                        oauthTokenSecret: viewModel.oauthTokenSecret,
+                        faveRequest: request
+                    )
+                    isFaved = false
+                } else {
+                    try await service.fave(
+                        apiKey: viewModel.apiKey,
+                        apiSecret: viewModel.apiSecret,
+                        oauthToken: viewModel.oauthToken,
+                        oauthTokenSecret: viewModel.oauthTokenSecret,
+                        faveRequest: request
+                    )
+                    isFaved = true
                 }
+            } catch {
+                actionError = error.localizedDescription
             }
-        } else {
-            service.fave(
-                apiKey: viewModel.apiKey,
-                apiSecret: viewModel.apiSecret,
-                oauthToken: viewModel.oauthToken,
-                oauthTokenSecret: viewModel.oauthTokenSecret,
-                faveRequest: request
-            ) { result in
-                DispatchQueue.main.async {
-                    isFaving = false
-                    switch result {
-                    case .success: isFaved = true
-                    case .failure(let error): actionError = error.localizedDescription
-                    }
-                }
-            }
+            isFaving = false
         }
     }
 
@@ -252,23 +239,21 @@ struct PhotoDetailView: View {
         isPostingComment = true
         actionError = nil
         let request = FlickrCommentRequest(photo_id: photo.id, comment_text: text)
-        service.comment(
-            apiKey: viewModel.apiKey,
-            apiSecret: viewModel.apiSecret,
-            oauthToken: viewModel.oauthToken,
-            oauthTokenSecret: viewModel.oauthTokenSecret,
-            commentRequest: request
-        ) { result in
-            DispatchQueue.main.async {
-                isPostingComment = false
-                switch result {
-                case .success:
-                    comments.append(text)
-                    newComment = ""
-                case .failure(let error):
-                    actionError = error.localizedDescription
-                }
+        Task { @MainActor in
+            do {
+                try await service.comment(
+                    apiKey: viewModel.apiKey,
+                    apiSecret: viewModel.apiSecret,
+                    oauthToken: viewModel.oauthToken,
+                    oauthTokenSecret: viewModel.oauthTokenSecret,
+                    commentRequest: request
+                )
+                comments.append(text)
+                newComment = ""
+            } catch {
+                actionError = error.localizedDescription
             }
+            isPostingComment = false
         }
     }
 }

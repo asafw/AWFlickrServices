@@ -8,158 +8,70 @@
 import Foundation
 
 public protocol FlickrPhotosProtocol {
+    /// Searches Flickr for photos matching the given request.
     func getPhotos(
         apiKey: String,
-        photosRequest: FlickrPhotosRequest,
-        completion: @escaping (Result<[FlickrPhoto], Error>) -> Void
-    )
+        photosRequest: FlickrPhotosRequest
+    ) async throws -> [FlickrPhoto]
 
-    func downloadImageData(
-        from url: URL,
-        completion: @escaping (Result<Data, Error>) -> Void
-    )
+    /// Downloads raw image bytes from the given URL.
+    func downloadImageData(from url: URL) async throws -> Data
 
+    /// Marks a photo as a favourite.
     func fave(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    )
+        faveRequest: FlickrFaveRequest
+    ) async throws
 
+    /// Removes a photo from favourites.
     func unfave(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    )
+        faveRequest: FlickrFaveRequest
+    ) async throws
 
+    /// Posts a comment on a photo.
     func comment(
         apiKey: String,
         apiSecret: String,
         oauthToken: String,
         oauthTokenSecret: String,
-        commentRequest: FlickrCommentRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    )
+        commentRequest: FlickrCommentRequest
+    ) async throws
 
+    /// Fetches metadata for a single photo.
     func getInfo(
         apiKey: String,
-        infoRequest: FlickrInfoRequest,
-        completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void
-    )
+        infoRequest: FlickrInfoRequest
+    ) async throws -> FlickrInfoResponse
 
+    /// Returns all comment texts on a photo.
     func getComments(
         apiKey: String,
-        commentsRequest: FlickrCommentsRequest,
-        completion: @escaping (Result<[String], Error>) -> Void
-    )
+        commentsRequest: FlickrCommentsRequest
+    ) async throws -> [String]
 }
 
-extension FlickrPhotosProtocol {
+public extension FlickrPhotosProtocol {
 
-    // A single repository instance per call; defaults to URLSession.shared.
-    private var repository: FlickrAPIService { FlickrAPIService() }
+    private var service: FlickrAPIService { FlickrAPIService() }
 
-    public func getPhotos(
-        apiKey: String,
-        photosRequest: FlickrPhotosRequest,
-        completion: @escaping (Result<[FlickrPhoto], Error>) -> Void
-    ) {
-        repository.getPhotos(apiKey: apiKey, photosRequest: photosRequest, completion: completion)
-    }
-
-    public func downloadImageData(
-        from url: URL,
-        completion: @escaping (Result<Data, Error>) -> Void
-    ) {
-        repository.downloadImageData(from: url, completion: completion)
-    }
-
-    public func fave(
-        apiKey: String,
-        apiSecret: String,
-        oauthToken: String,
-        oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
-        repository.fave(
-            apiKey: apiKey, apiSecret: apiSecret,
-            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-            faveRequest: faveRequest, completion: completion
-        )
-    }
-
-    public func unfave(
-        apiKey: String,
-        apiSecret: String,
-        oauthToken: String,
-        oauthTokenSecret: String,
-        faveRequest: FlickrFaveRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
-        repository.unfave(
-            apiKey: apiKey, apiSecret: apiSecret,
-            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-            faveRequest: faveRequest, completion: completion
-        )
-    }
-
-    public func comment(
-        apiKey: String,
-        apiSecret: String,
-        oauthToken: String,
-        oauthTokenSecret: String,
-        commentRequest: FlickrCommentRequest,
-        completion: @escaping (Result<Void, Error>) -> Void
-    ) {
-        repository.comment(
-            apiKey: apiKey, apiSecret: apiSecret,
-            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-            commentRequest: commentRequest, completion: completion
-        )
-    }
-
-    public func getInfo(
-        apiKey: String,
-        infoRequest: FlickrInfoRequest,
-        completion: @escaping (Result<FlickrInfoResponse, Error>) -> Void
-    ) {
-        repository.getInfo(apiKey: apiKey, infoRequest: infoRequest, completion: completion)
-    }
-
-    public func getComments(
-        apiKey: String,
-        commentsRequest: FlickrCommentsRequest,
-        completion: @escaping (Result<[String], Error>) -> Void
-    ) {
-        repository.getComments(apiKey: apiKey, commentsRequest: commentsRequest, completion: completion)
-    }
-
-    // MARK: - Async/await overloads
-
-    /// Searches Flickr for photos matching the given request.
     public func getPhotos(
         apiKey: String,
         photosRequest: FlickrPhotosRequest
     ) async throws -> [FlickrPhoto] {
-        try await withCheckedThrowingContinuation { continuation in
-            getPhotos(apiKey: apiKey, photosRequest: photosRequest) { continuation.resume(with: $0) }
-        }
+        try await service.getPhotos(apiKey: apiKey, photosRequest: photosRequest)
     }
 
-    /// Downloads raw image bytes from the given URL.
     public func downloadImageData(from url: URL) async throws -> Data {
-        try await withCheckedThrowingContinuation { continuation in
-            downloadImageData(from: url) { continuation.resume(with: $0) }
-        }
+        try await service.downloadImageData(from: url)
     }
 
-    /// Marks a photo as a favourite.
     public func fave(
         apiKey: String,
         apiSecret: String,
@@ -167,16 +79,13 @@ extension FlickrPhotosProtocol {
         oauthTokenSecret: String,
         faveRequest: FlickrFaveRequest
     ) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            fave(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                faveRequest: faveRequest
-            ) { continuation.resume(with: $0) }
-        }
+        try await service.fave(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            faveRequest: faveRequest
+        )
     }
 
-    /// Removes a photo from favourites.
     public func unfave(
         apiKey: String,
         apiSecret: String,
@@ -184,16 +93,13 @@ extension FlickrPhotosProtocol {
         oauthTokenSecret: String,
         faveRequest: FlickrFaveRequest
     ) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            unfave(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                faveRequest: faveRequest
-            ) { continuation.resume(with: $0) }
-        }
+        try await service.unfave(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            faveRequest: faveRequest
+        )
     }
 
-    /// Posts a comment on a photo.
     public func comment(
         apiKey: String,
         apiSecret: String,
@@ -201,32 +107,24 @@ extension FlickrPhotosProtocol {
         oauthTokenSecret: String,
         commentRequest: FlickrCommentRequest
     ) async throws {
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            comment(
-                apiKey: apiKey, apiSecret: apiSecret,
-                oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
-                commentRequest: commentRequest
-            ) { continuation.resume(with: $0) }
-        }
+        try await service.comment(
+            apiKey: apiKey, apiSecret: apiSecret,
+            oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
+            commentRequest: commentRequest
+        )
     }
 
-    /// Fetches metadata for a single photo.
     public func getInfo(
         apiKey: String,
         infoRequest: FlickrInfoRequest
     ) async throws -> FlickrInfoResponse {
-        try await withCheckedThrowingContinuation { continuation in
-            getInfo(apiKey: apiKey, infoRequest: infoRequest) { continuation.resume(with: $0) }
-        }
+        try await service.getInfo(apiKey: apiKey, infoRequest: infoRequest)
     }
 
-    /// Returns all comment texts on a photo.
     public func getComments(
         apiKey: String,
         commentsRequest: FlickrCommentsRequest
     ) async throws -> [String] {
-        try await withCheckedThrowingContinuation { continuation in
-            getComments(apiKey: apiKey, commentsRequest: commentsRequest) { continuation.resume(with: $0) }
-        }
+        try await service.getComments(apiKey: apiKey, commentsRequest: commentsRequest)
     }
 }
