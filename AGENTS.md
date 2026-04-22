@@ -28,8 +28,10 @@ Before ending the conversation, the AI must:
 
 ```bash
 cd ~/Desktop/asafw/AWFlickrServices
-swift build
-swift test
+# Unit tests (fast, no network)
+xcodebuild -scheme AWFlickrServices-Package -destination "platform=macOS" -only-testing:AWFlickrServicesTests test
 ```
 
-All tests must pass after any change. Run `swift test` to verify.
+> `swift test` fails with "no such module 'AuthenticationServices'" — always use `xcodebuild`.
+
+All 74 tests must pass after any change.

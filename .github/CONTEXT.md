@@ -254,15 +254,16 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
-(HEAD — see below after push)
-93bc60a  feat(v2): async/await overloads + FlickrService concrete type (Phase 4)
+b81c3b8  docs: document SIMCTL_CHILD_ env var method for launching iOS demo app
+96ed3f2  refactor: replace all closure-based API with pure async/await (breaking change)
+93bc60a  feat(phase4): async/await overloads for all protocol methods + FlickrService concrete type (73 tests)
+14d2b30  refactor: rename FlickrAPIRepository to FlickrAPIService
 be912c9  docs: fix stale branch name in AGENTS.md and screencapture flag in instructions
 a0e0c3c  docs(context): update session state after screenshot refresh
 d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 11173d9  screenshots: update ios authenticated photo detail
 59cd907  screenshots: rename signed-in screenshot to bust GitHub image cache
 5828365  screenshots: update ios authenticated search results
-14d2b30  refactor: rename FlickrAPIRepository to FlickrAPIService
 ```
 
 ---
@@ -273,87 +274,3 @@ d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 - Tag `2.0.0` and merge `v2` → `master`
 - ✅ Pure `async throws` API — all closure-based API removed (breaking change vs v1)
 - ✅ `FlickrService` concrete class added
-
-
-Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
-
----
-
-## Build and test
-
-```bash
-cd ~/Desktop/asafw/AWFlickrServices
-# Build
-xcodebuild -scheme AWFlickrServices -destination "generic/platform=iOS Simulator" build
-# Test
-xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test
-```
-
----
-
-## Commit history
-
-```
-(v2 branch)
-a55838f   test: coverage improvements — decoded results, OAuth parsing, oauth_signature, RFC 3986 edge cases (34 tests)
-f5d139a   fix: S6-S8 OAuth encoding — RFC 3986 percent-encoding, alphanumeric nonce, merge encode helpers
-81d421b   feat: S1-S5 audit fixes + cross-platform refactor (iOS + macOS)
-1e73143   fix(v2): public FlickrPhoto fields, HMAC utf8 byte count, add URL-building tests
-2bb25d5   fix(v2): audit fixes — Equatable error, public photo_id, nil-URL completions, OAuthProtocol consistency, test tearDown
-93d5920   feat(v2): Phase 1+2 modernisation — NS types, FlickrEndpoints enum, URLSession injection, HTTP validation, page/per_page Int, Sendable, 13 unit tests, CI workflow
-2977c1d   docs(context): add CONTEXT.md, AGENTS.md, and Copilot instructions
-442d7cb   Updated total JSON field from String to Int
-febaa49   Fixed typo in Readme
-ccd3bc5   Version 1.0.0
-9320964   Initial commit
-```
-
----
-
-## Remaining work (Phase 3–4, future)
-
-- Change `FlickrPhotosRequest.page`/`per_page` public init already done (Int)
-- Phase 3: `FlickrAPIService` injection via protocol (currently instantiated per-method-call)
-- Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
-- Phase 4: `FlickrService` class wrapper for SwiftUI consumers
-- Tag `2.0.0` on `v2` branch when Phase 3–4 are complete, then merge to master
-
----
-
-## Tests
-
-- **Current state:** Placeholder only — `testExample` is commented out.
-- **Real tests needed:** URL-building, OAuth parameter generation, model parsing.
-- Run: `swift test` (from repo root)
-
----
-
-## Build and test
-
-```bash
-cd ~/Desktop/asafw/AWFlickrServices
-swift build
-swift test
-```
-
----
-
-## Commit history
-
-```
-442d7cb  Updated total JSON field from String to Int
-febaa49  Fixed typo in Readme
-ccd3bc5  Version 1.0.0
-9320964  Initial commit
-```
-
----
-
-## Known issues / potential improvements
-
-- `FlickrAPIService` is instantiated per-method-call inside `FlickrPhotosProtocol` and
-  `FlickrOAuthProtocol` computed property `repository` — Phase 3 will introduce a protocol
-  so callers can inject a custom session without subclassing (testability seam).
-- Completion handlers fire on the URLSession background queue — callers must dispatch to
-  main queue themselves for UI updates.
-- No Swift 5.5+ async/await overloads (Phase 4).
