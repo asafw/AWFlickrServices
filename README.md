@@ -407,6 +407,7 @@ A demo app under `Examples/` demonstrates all seven `FlickrPhotosProtocol` metho
 | Empty state | Signed in | Search results |
 |:-----------:|:---------:|:--------------:|
 | ![iOS empty state](screenshots/ios/ios_empty_state.png) | ![iOS signed in](screenshots/ios/ios_signed_in.png) | ![iOS search results](screenshots/ios/ios_search_results.png) |
+| **Photo detail** | **Authenticated search** | **Authenticated detail** |
 | ![iOS photo detail](screenshots/ios/ios_photo_detail.png) | ![iOS authenticated search](screenshots/ios/ios_search_results_signed_in.png) | ![iOS authenticated detail](screenshots/ios/ios_photo_detail_authenticated.png) |
 
 #### macOS
