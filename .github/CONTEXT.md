@@ -305,7 +305,7 @@ private struct StubBackedService: FlickrPhotosProtocol {
 
 ## Remaining work
 
-- Tag `2.0.0` and merge `v2` → `master`
+- ✅ Tag `2.0.0` and merge `v2` → `master` (tag `2.0.0` pushed; master at `a0e0ff4`)
 - ✅ `urlSession` protocol requirement — session injection via override, `StubBackedService` simplified
 - ✅ Pure `async throws` API — all closure-based API removed (breaking change vs v1)
 - ✅ `FlickrService` concrete class added
