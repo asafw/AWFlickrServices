@@ -89,7 +89,7 @@ AWFlickrServices/
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests (FlickrSearchIntegrationTests + FlickrOAuthIntegrationTests)
 ├── screenshots/
-│   ├── ios/                          ← 6 PNG screenshots (empty, signed_in, search_results, photo_detail, and authenticated variants)
+│   ├── ios/                          ← 6 PNG screenshots: ios_empty_state, ios_signed_in, ios_search_results, ios_photo_detail, ios_search_results_authenticated, ios_detail_authenticated
 │   └── macos/                        ← 3 PNG screenshots (empty_state, search_results, photo_detail)
 ├── scripts/
 │   ├── ios_screenshots.sh            ← Runs FlickrDemoScreenshots UITests; extracts PNGs to screenshots/ios/
@@ -237,25 +237,22 @@ Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone)
 
 ---
 
-## Commit history (latest 8)
+## Commit history (latest 10)
 
 ```
+d1dd608  screenshots: rename authenticated detail to bust GitHub cache
+11173d9  screenshots: update ios authenticated photo detail
+59cd907  screenshots: rename signed-in screenshot to bust GitHub image cache
+5828365  screenshots: update ios authenticated search results
+5464585  docs: use img tags with fixed width for screenshots
+4d2dcc3  docs: equalize table column widths for screenshots
+25bd57a  docs: add titles for second row of iOS screenshots
+c76b7ca  docs: merge iOS screenshot rows into single table
+0fa2223  docs: remove duplicate README content
+8122944  screenshots: update ios photo detail with real Flickr photo
 1222dc8  feat(screenshots): automated screenshot pipeline for iOS and macOS
 fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
 97643d9  feat(examples): iOS demo app — cross-platform source files, NavigationStack/View #available, XcodeGen project
-40fd275  feat(examples): add OAuth flow, fave/unfave/comment to demo — full API coverage
-c81b0a3  docs(context): sync after cross-platform + iOS demo build
-1b7098a  docs: add FlickrDemoApp launch instructions to README and CONTEXT
-90a8cd1  fix(demo): activate app on appear so TextField responds to keyboard input
-cf5ab69  feat(examples): add FlickrDemoApp SPM target — SwiftUI macOS demo of search, thumbnails, photo detail, getInfo, getComments
-b4d6ff3  test: audit — stat:fail coverage for getInfo/getComments/unfave/comment, A9 regression for getRequestToken
-e211f49  docs(context): remove stale duplicate section, add missing docs-sync commit to history
-552deb7  docs(context): sync after A9/A13/A14 fixes — 46 unit tests
-c57a07d  fix: A9 key-value parser splits on first = only, A13 stat:fail on POST endpoints, A14 callbackURLScheme extracts scheme
-ee81f4c  docs(context): sync CONTEXT.md and instructions after session — 44 unit tests, 16 integration tests, apiError, OAuthUtilitiesTests
-f91b83d  test: OAuth 1.0a coverage — RFC 2202 HMAC-SHA1 vector, signing key format, all params, live getRequestToken + fave/unfave tests
-3f2ef8c  fix: detect Flickr stat:fail 200-responses as FlickrAPIError.apiError, add unit + integration test
-6218989  test(integration): add 9 new live tests — per_page, pagination, spaces, invalid key, page clamp, large URL, JPEG magic bytes, views numeric, concurrency
 ```
 
 ---
