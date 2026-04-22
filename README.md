@@ -1,7 +1,7 @@
 # AWFlickrServices
 
-![iOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/ios.yml/badge.svg)
-![macOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/macos.yml/badge.svg)
+![iOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/ios.yml/badge.svg?branch=master)
+![macOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/macos.yml/badge.svg?branch=master)
 
 A Swift Package for integrating the Flickr API in iOS and macOS applications. Has no external dependencies.
 Uses a **protocol mixin pattern** — conform any Swift type to `AWFlickrOAuthProtocol`
