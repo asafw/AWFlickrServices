@@ -431,13 +431,38 @@ Run from the package root (`AWFlickrServices/` directory).
 
 ### Running on iOS Simulator
 
+**Option 1 — command line (no Xcode needed after first build):**
+
 ```bash
 cd Examples/FlickrDemoApp-iOS
-xcodegen generate          # only needed once
+xcodegen generate   # only needed once, or after project.yml changes
+
+# Build
+xcodebuild -scheme FlickrDemoApp-iOS \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -configuration Debug build
+
+# Boot simulator and install
+UDID=$(xcrun simctl list devices booted | grep 'iPhone 16' | head -1 | grep -oE '[A-F0-9-]{36}')
+xcrun simctl boot "$UDID" 2>/dev/null; open -a Simulator
+xcrun simctl install "$UDID" \
+  ~/Library/Developer/Xcode/DerivedData/FlickrDemoApp-iOS-*/Build/Products/Debug-iphonesimulator/Flickr\ Demo.app
+
+# Launch with API key
+# SIMCTL_CHILD_ prefix passes the variable directly to the app process
+SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key)" \
+  xcrun simctl launch "$UDID" com.example.flickrdemo
+```
+
+**Option 2 — Xcode:**
+
+```bash
+cd Examples/FlickrDemoApp-iOS
+xcodegen generate
 open FlickrDemoApp-iOS.xcodeproj
 ```
 
-In Xcode, set `FLICKR_API_KEY` in **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**, then ⌘R. If the variable is absent an API Key field appears in the app UI.
+Set `FLICKR_API_KEY` in **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**, then ⌘R. If the variable is absent an API Key field appears in the app UI.
 
 Layout adapts automatically: VStack on iPhone, HStack sidebar on iPad and macOS.
 

@@ -225,19 +225,29 @@ swift run FlickrDemoApp
 - `FlickrDemoApp.swift` calls `NSApp.setActivationPolicy(.regular)` + `NSApp.activate(ignoringOtherApps: true)` in `.onAppear` to work around the standard macOS behaviour where `swift run`-launched processes don’t become the foreground app.
 - macOS 12 uses `NavigationView`; macOS 13+ uses `NavigationStack` (both via `#available` in ContentView).
 
-### iOS Simulator (Xcode project)
+### iOS Simulator
 
 ```bash
-# Generate the Xcode project (XcodeGen must be installed: brew install xcodegen)
+# Build (from Examples/FlickrDemoApp-iOS/)
 cd ~/Desktop/asafw/AWFlickrServices/Examples/FlickrDemoApp-iOS
-xcodegen generate  # creates FlickrDemoApp-iOS.xcodeproj (gitignored)
-open FlickrDemoApp-iOS.xcodeproj
+xcodegen generate --quiet
+xcodebuild -scheme FlickrDemoApp-iOS -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build
+
+# Boot + install
+UDID=A1042622-0426-4FF9-94B3-0427070B3921   # iPhone 16 simulator
+xcrun simctl boot "$UDID" 2>/dev/null; open -a Simulator
+xcrun simctl install "$UDID" \
+  ~/Library/Developer/Xcode/DerivedData/FlickrDemoApp-iOS-*/Build/Products/Debug-iphonesimulator/Flickr\ Demo.app
+
+# Launch with API key — use SIMCTL_CHILD_ prefix (--setenv not supported in this Xcode version)
+SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
+  xcrun simctl launch "$UDID" com.example.flickrdemo
 ```
 
-In Xcode: set `FLICKR_API_KEY` env var in **Product → Scheme → Edit Scheme → Run → Arguments → Environment Variables**, then ⌘R.
-If the key is not set via env var, an "API Key" text field appears in the app UI on first launch.
-
-Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone), HStack with sidebar (regular/iPad/macOS).
+- **Bundle ID:** `com.example.flickrdemo`
+- **App bundle name:** `Flickr Demo.app` (note the space)
+- **`SIMCTL_CHILD_*`** — simctl strips the prefix and injects the remainder as an env var into the spawned process. This is the only way to pass env vars via CLI in Xcode 16+; `--setenv` is not supported.
+- Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone), HStack with sidebar (regular/iPad/macOS).
 
 ---
 
