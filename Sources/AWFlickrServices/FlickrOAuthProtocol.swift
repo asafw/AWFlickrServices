@@ -102,5 +102,24 @@ extension FlickrOAuthProtocol {
             webAuthSession.start()
         }
     }
+
+    // MARK: - Async/await overload
+
+    /// Runs the full three-legged OAuth 1.0a flow and returns the access token response.
+    public func performOAuthFlow(
+        from context: ASWebAuthenticationPresentationContextProviding,
+        apiKey: String,
+        apiSecret: String,
+        callbackUrlString: String
+    ) async throws -> AccessTokenResponse {
+        try await withCheckedThrowingContinuation { continuation in
+            performOAuthFlow(
+                from: context,
+                apiKey: apiKey,
+                apiSecret: apiSecret,
+                callbackUrlString: callbackUrlString
+            ) { continuation.resume(with: $0) }
+        }
+    }
 }
 

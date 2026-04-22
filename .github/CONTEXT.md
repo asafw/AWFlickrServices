@@ -153,7 +153,7 @@ AWFlickrServices/
 
 ## Tests
 
-### Unit tests — 55 passing
+### Unit tests — 73 passing
 
 | Suite | Count | What it covers |
 |---|---|---|
@@ -165,6 +165,8 @@ AWFlickrServices/
 | `FlickrAPIServiceOAuthParsingTests` | 7 | request/access token key-value parsing, HTTP error paths, A9 `=` in token secret (both getAccessToken and getRequestToken), A13 stat:fail on fave |
 | `RFC3986EncodingTests` | 7 | space, &, =, +, #, /, unreserved passthrough |
 | `OAuthUtilitiesTests` | 9 | RFC 2202 HMAC-SHA1 vector, all 7 required OAuth params, HMAC-SHA1 method, version 1.0, nonce alphanumeric, callback in request token URL, verifier + token in access token URL, signing key uses empty token secret |
+| `FlickrPhotosProtocolAsyncTests` | 15 | async overloads for getPhotos/downloadImageData/getInfo/getComments/fave/unfave/comment — success and error paths via stubbed session |
+| `FlickrServiceTests` | 3 | `FlickrService` instantiation, conformance to both protocols |
 
 Run unit tests:
 ```bash
@@ -240,19 +242,16 @@ Layout adapts via `@Environment(\.horizontalSizeClass)`: VStack (compact/iPhone)
 ## Commit history (latest 10)
 
 ```
+(HEAD — see below after push)
+be912c9  docs: fix stale branch name in AGENTS.md and screencapture flag in instructions
+a0e0c3c  docs(context): update session state after screenshot refresh
 d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 11173d9  screenshots: update ios authenticated photo detail
 59cd907  screenshots: rename signed-in screenshot to bust GitHub image cache
 5828365  screenshots: update ios authenticated search results
-5464585  docs: use img tags with fixed width for screenshots
-4d2dcc3  docs: equalize table column widths for screenshots
-25bd57a  docs: add titles for second row of iOS screenshots
-c76b7ca  docs: merge iOS screenshot rows into single table
-0fa2223  docs: remove duplicate README content
-8122944  screenshots: update ios photo detail with real Flickr photo
-1222dc8  feat(screenshots): automated screenshot pipeline for iOS and macOS
-fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated keyWindow API; D2 demo error feedback
-97643d9  feat(examples): iOS demo app — cross-platform source files, NavigationStack/View #available, XcodeGen project
+14d2b30  refactor: rename FlickrAPIRepository to FlickrAPIService
+be912c9  docs: fix stale branch name and screencapture flag
+a0e0c3c  docs(context): update session state after screenshot refresh
 ```
 
 ---
@@ -260,9 +259,9 @@ fe78db9  test+fix: audit — B1-B4 success paths/HTTP error tests; D1 deprecated
 ## Remaining work (Phase 3–4, future)
 
 - Phase 3: `FlickrAPIService` injection via protocol (currently instantiated per-method-call in the protocol extensions)
-- Phase 4: `async`/`await` overloads via `withCheckedThrowingContinuation`
-- Phase 4: `FlickrService` class wrapper for SwiftUI consumers
-- Tag `2.0.0` and merge `v2` → `master` when Phase 3–4 are complete
+- Phase 4: ✅ `async`/`await` overloads added to `FlickrPhotosProtocol` and `FlickrOAuthProtocol`
+- Phase 4: ✅ `FlickrService` concrete class added
+- Tag `2.0.0` and merge `v2` → `master` when Phase 3 is complete (or deemed optional)
 
 
 Run: `xcodebuild -scheme AWFlickrServices -destination "platform=iOS Simulator,name=iPhone 16" test`
