@@ -3,14 +3,14 @@
 ![iOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/ios.yml/badge.svg)
 ![macOS CI](https://github.com/asafw/AWFlickrServices/actions/workflows/macos.yml/badge.svg)
 
-A dependency-free Swift Package for integrating the Flickr API in iOS and macOS applications.
-Uses a **protocol mixin pattern** — conform any Swift type to `FlickrOAuthProtocol`
-or `FlickrPhotosProtocol` and get full API access through protocol extension default
+A Swift Package for integrating the Flickr API in iOS and macOS applications. Has no external dependencies.
+Uses a **protocol mixin pattern** — conform any Swift type to `AWFlickrOAuthProtocol`
+or `AWFlickrPhotosProtocol` and get full API access through protocol extension default
 implementations. No subclassing or dependency injection required.
 
 ## Version
 
-* 2.0.0
+* 3.0.0
 
 ## Requirements
 
@@ -22,11 +22,31 @@ implementations. No subclassing or dependency injection required.
 
 | Protocol | Methods | OAuth required |
 |---|---|---|
-| `FlickrPhotosProtocol` | `getPhotos`, `downloadImageData`, `getInfo`, `getComments` | No |
-| `FlickrPhotosProtocol` | `fave`, `unfave`, `comment` | Yes |
-| `FlickrOAuthProtocol` | `performOAuthFlow` | — (drives the sign-in flow) |
+| `AWFlickrPhotosProtocol` | `getPhotos`, `downloadImageData`, `getInfo`, `getComments` | No |
+| `AWFlickrPhotosProtocol` | `fave`, `unfave`, `comment` | Yes |
+| `AWFlickrOAuthProtocol` | `performOAuthFlow` | — (drives the sign-in flow) |
 
 All public model types conform to `Sendable`.
+
+## Migrating from v2
+
+| v2 | v3 |
+|---|---|
+| `FlickrOAuthProtocol` | `AWFlickrOAuthProtocol` |
+| `FlickrPhotosProtocol` | `AWFlickrPhotosProtocol` |
+| `FlickrService` | `AWFlickrService` |
+| `FlickrPhoto` | `AWFlickrPhoto` |
+| `FlickrPhotosRequest` | `AWFlickrPhotosRequest` |
+| `FlickrFaveRequest` | `AWFlickrFaveRequest` |
+| `FlickrCommentRequest` | `AWFlickrCommentRequest` |
+| `FlickrInfoRequest` | `AWFlickrInfoRequest` |
+| `FlickrInfoResponse` | `AWFlickrInfoResponse` |
+| `FlickrCommentsRequest` | `AWFlickrCommentsRequest` |
+| `AccessTokenResponse` | `AWAccessTokenResponse` |
+| `FlickrAPIError` | `AWFlickrAPIError` |
+| `PhotoInfo` | `AWFlickrPhotoInfo` |
+| `Owner` | `AWFlickrOwner` |
+| `Dates` | `AWFlickrDates` |
 
 ## Migrating from v1
 
@@ -35,6 +55,7 @@ All public model types conform to `Sendable`.
 | `FlickrPhotosRequest(text:page:per_page:)` — `page`/`per_page` are `String` | `page`/`per_page` are `Int` |
 | `Comment._content` | `Comment.content` |
 | `getImage(from:completion:)` returns `UIImage` | `downloadImageData(from:completion:)` returns `Data` |
+| Completion handlers | Pure `async throws` — no completion handlers |
 | iOS 13+ | iOS 16+ |
 
 ## Installation
@@ -63,25 +84,25 @@ AWFlickrServices uses **protocol mixins**: every method is declared in a protoco
 
 ```swift
 // Any Swift type works — all methods come from the protocol extension defaults
-struct PhotoRepository: FlickrPhotosProtocol { }
+struct PhotoRepository: AWFlickrPhotosProtocol { }
 let repo = PhotoRepository()
 let photos = try await repo.getPhotos(apiKey: "KEY", photosRequest: request)
 ```
 
 ### Injecting a custom `URLSession`
 
-Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` expose a `urlSession` requirement
+Both `AWFlickrPhotosProtocol` and `AWFlickrOAuthProtocol` expose a `urlSession` requirement
 with a default implementation that returns `URLSession.shared`. Override it to provide a
 custom session — for example, to intercept traffic in tests or to configure timeouts:
 
 ```swift
 // Inject a URLProtocol-backed session for unit tests
-struct TestRepository: FlickrPhotosProtocol {
+struct TestRepository: AWFlickrPhotosProtocol {
     let urlSession: URLSession   // init with URLSession(configuration: ephemeralWithStub)
 }
 
 // Or configure caching / timeouts for production
-struct PhotoRepository: FlickrPhotosProtocol {
+struct PhotoRepository: AWFlickrPhotosProtocol {
     var urlSession: URLSession {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 10
@@ -101,22 +122,22 @@ is exposed instead so consumers get full session control without coupling to int
 
 | Type | Fields |
 |---|---|
-| `FlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` |
-| `FlickrInfoRequest` | `photo_id: String`, `secret: String` |
-| `FlickrCommentsRequest` | `photo_id: String` |
-| `FlickrFaveRequest` | `photo_id: String` |
-| `FlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
+| `AWFlickrPhotosRequest` | `text: String`, `page: Int`, `per_page: Int` |
+| `AWFlickrInfoRequest` | `photo_id: String`, `secret: String` |
+| `AWFlickrCommentsRequest` | `photo_id: String` |
+| `AWFlickrFaveRequest` | `photo_id: String` |
+| `AWFlickrCommentRequest` | `photo_id: String`, `comment_text: String` |
 
 All request types conform to `Sendable`.
 
 ### Response types
 
-#### `FlickrPhoto`
+#### `AWFlickrPhoto`
 
 Returned in arrays from `getPhotos`.
 
 ```swift
-public struct FlickrPhoto: Decodable, Sendable {
+public struct AWFlickrPhoto: Decodable, Sendable {
     public let id: String
     public let owner: String?   // owner NSID — present in faves responses
     public let secret: String
@@ -137,37 +158,37 @@ let url = URL(string: photo.largePhotoURLString())
 // → "https://farm4.staticflickr.com/3/12345678_abcdef00_b.jpg"
 ```
 
-#### `FlickrInfoResponse`
+#### `AWFlickrInfoResponse`
 
 Returned from `getInfo`.
 
 ```swift
-public struct FlickrInfoResponse: Decodable, Sendable {
-    public let photo: PhotoInfo
+public struct AWFlickrInfoResponse: Decodable, Sendable {
+    public let photo: AWFlickrPhotoInfo
 }
 
-public struct PhotoInfo: Decodable, Sendable {
-    public let owner: Owner
-    public let dates: Dates
+public struct AWFlickrPhotoInfo: Decodable, Sendable {
+    public let owner: AWFlickrOwner
+    public let dates: AWFlickrDates
     public let views: String    // numeric string, e.g. "4821"
 }
 
-public struct Owner: Decodable, Sendable {
+public struct AWFlickrOwner: Decodable, Sendable {
     public let realname: String
     public let location: String?   // nil if the owner hasn't set a location
 }
 
-public struct Dates: Decodable, Sendable {
+public struct AWFlickrDates: Decodable, Sendable {
     public let taken: String    // "YYYY-MM-DD HH:MM:SS"
 }
 ```
 
-#### `AccessTokenResponse`
+#### `AWAccessTokenResponse`
 
 Returned from `performOAuthFlow` on successful sign-in.
 
 ```swift
-public struct AccessTokenResponse: Decodable, Sendable {
+public struct AWAccessTokenResponse: Sendable {
     public let fullname: String
     public let oauth_token: String
     public let oauth_token_secret: String
@@ -178,12 +199,12 @@ public struct AccessTokenResponse: Decodable, Sendable {
 
 Persist `oauth_token` and `oauth_token_secret` (e.g. in the Keychain) — both are required for every authenticated call.
 
-### `FlickrAPIError`
+### `AWFlickrAPIError`
 
-All `async throws` methods throw `FlickrAPIError`. Use a `do/catch` block for structured error handling:
+All `async throws` methods throw `AWFlickrAPIError`. Use a `do/catch` block for structured error handling:
 
 ```swift
-public enum FlickrAPIError: Error, Equatable {
+public enum AWFlickrAPIError: Error, Equatable {
     case parsingError                      // unexpected server response shape
     case networkError                      // non-2xx HTTP status
     case apiError(code: Int, message: String)  // Flickr stat:fail (HTTP 200 with error body)
@@ -203,31 +224,22 @@ Common `apiError` codes:
 
 ## Usage
 
-All network callbacks fire on the **URLSession background queue**. Always dispatch UI updates to the main thread:
-
-```swift
-getPhotos(apiKey: apiKey, photosRequest: request) { [weak self] result in
-    // ⚠️ background thread
-    if case .success(let photos) = result {
-        DispatchQueue.main.async { self?.photos = photos }
-    }
-}
-```
+All methods are `async throws`. Call them from an `async` context (e.g. a `Task` or an `@MainActor` method).
 
 ---
 
-### FlickrOAuthProtocol
+### AWFlickrOAuthProtocol
 
 `performOAuthFlow` runs the full three-legged OAuth 1.0a flow: request token → user authorization (in-app web sheet) → access token.
 
-On iOS, conform a `UIViewController` to both `FlickrOAuthProtocol` and `ASWebAuthenticationPresentationContextProviding`:
+On iOS, conform a `UIViewController` to both `AWFlickrOAuthProtocol` and `ASWebAuthenticationPresentationContextProviding`:
 
 ```swift
 import AWFlickrServices
 import AuthenticationServices
 
 class AuthViewController: UIViewController,
-                          FlickrOAuthProtocol,
+                          AWFlickrOAuthProtocol,
                           ASWebAuthenticationPresentationContextProviding {
 
     var oauthToken       = ""
@@ -238,18 +250,18 @@ class AuthViewController: UIViewController,
     }
 
     func signIn() {
-        performOAuthFlow(
-            from: self,
-            apiKey: "YOUR_API_KEY",
-            apiSecret: "YOUR_API_SECRET",
-            callbackUrlString: "myapp://flickr-oauth"
-        ) { [weak self] result in
-            switch result {
-            case .success(let response):
-                self?.oauthToken       = response.oauth_token
-                self?.oauthTokenSecret = response.oauth_token_secret
+        Task {
+            do {
+                let response = try await performOAuthFlow(
+                    from: self,
+                    apiKey: "YOUR_API_KEY",
+                    apiSecret: "YOUR_API_SECRET",
+                    callbackUrlString: "myapp://flickr-oauth"
+                )
+                oauthToken       = response.oauth_token
+                oauthTokenSecret = response.oauth_token_secret
                 print("Signed in as", response.username)
-            case .failure(let error):
+            } catch {
                 print("Sign-in failed:", error)
             }
         }
@@ -261,27 +273,26 @@ On macOS, supply a dedicated `PresentationContext` that returns `NSApp.keyWindow
 
 ---
 
-### FlickrPhotosProtocol
+### AWFlickrPhotosProtocol
 
 #### getPhotos
 
-Search for photos by keyword. Returns `[FlickrPhoto]`.
+Search for photos by keyword. Returns `[AWFlickrPhoto]`.
 
 ```swift
-let request = FlickrPhotosRequest(text: "golden gate", page: 1, per_page: 25)
-getPhotos(apiKey: apiKey, photosRequest: request) { result in
-    switch result {
-    case .success(let photos):
-        // [FlickrPhoto] — use photo.id, .title, .thumbnailPhotoURLString(), etc.
-        photos.forEach { print($0.title) }
-    case .failure(let error as FlickrAPIError):
-        switch error {
-        case .networkError: print("Network error")
-        case .apiError(let code, let msg): print("Flickr error \(code): \(msg)")
-        default: break
-        }
-    case .failure(let error): print(error)
+let request = AWFlickrPhotosRequest(text: "golden gate", page: 1, per_page: 25)
+do {
+    let photos = try await getPhotos(apiKey: apiKey, photosRequest: request)
+    // [AWFlickrPhoto] — use photo.id, .title, .thumbnailPhotoURLString(), etc.
+    photos.forEach { print($0.title) }
+} catch let error as AWFlickrAPIError {
+    switch error {
+    case .networkError: print("Network error")
+    case .apiError(let code, let msg): print("Flickr error \(code): \(msg)")
+    case .parsingError: print("Parsing error")
     }
+} catch {
+    print(error)
 }
 ```
 
@@ -290,15 +301,11 @@ getPhotos(apiKey: apiKey, photosRequest: request) { result in
 ```swift
 var page = 1
 
-func loadMore() {
-    let request = FlickrPhotosRequest(text: "landscape", page: page, per_page: 25)
-    getPhotos(apiKey: apiKey, photosRequest: request) { [weak self] result in
-        if case .success(let photos) = result {
-            DispatchQueue.main.async {
-                self?.allPhotos.append(contentsOf: photos)
-                self?.page += 1
-            }
-        }
+func loadMore() async {
+    let request = AWFlickrPhotosRequest(text: "landscape", page: page, per_page: 25)
+    if let photos = try? await getPhotos(apiKey: apiKey, photosRequest: request) {
+        allPhotos.append(contentsOf: photos)
+        page += 1
     }
 }
 ```
@@ -312,15 +319,8 @@ Downloads raw image bytes from any URL. Uses `.returnCacheDataElseLoad` — repe
 ```swift
 guard let url = URL(string: photo.largePhotoURLString()) else { return }
 
-downloadImageData(from: url) { result in
-    switch result {
-    case .success(let data):
-        DispatchQueue.main.async {
-            self.imageView.image = UIImage(data: data) // NSImage(data:) on macOS
-        }
-    case .failure:
-        break // show placeholder
-    }
+if let data = try? await downloadImageData(from: url) {
+    imageView.image = UIImage(data: data)  // NSImage(data:) on macOS
 }
 ```
 
@@ -333,18 +333,12 @@ Thumbnails use the same method — just call `photo.thumbnailPhotoURLString()` i
 Fetches metadata for a single photo: owner name and optional location, date taken, and total view count.
 
 ```swift
-let request = FlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
-getInfo(apiKey: apiKey, infoRequest: request) { result in
-    switch result {
-    case .success(let response):
-        print(response.photo.owner.realname)        // "Alice Smith"
-        print(response.photo.owner.location ?? "")  // "Paris, France" or nil
-        print(response.photo.dates.taken)           // "2021-07-04 12:30:00"
-        print(response.photo.views)                 // "4821"
-    case .failure(let error):
-        print("getInfo failed:", error)
-    }
-}
+let request = AWFlickrInfoRequest(photo_id: photo.id, secret: photo.secret)
+let response = try await getInfo(apiKey: apiKey, infoRequest: request)
+print(response.photo.owner.realname)        // "Alice Smith"
+print(response.photo.owner.location ?? "")  // "Paris, France" or nil
+print(response.photo.dates.taken)           // "2021-07-04 12:30:00"
+print(response.photo.views)                 // "4821"
 ```
 
 ---
@@ -354,15 +348,9 @@ getInfo(apiKey: apiKey, infoRequest: request) { result in
 Returns all comment texts on a photo as `[String]`.
 
 ```swift
-let request = FlickrCommentsRequest(photo_id: photo.id)
-getComments(apiKey: apiKey, commentsRequest: request) { result in
-    switch result {
-    case .success(let comments):
-        comments.forEach { print($0) }   // plain text of each comment
-    case .failure(let error):
-        print("getComments failed:", error)
-    }
-}
+let request = AWFlickrCommentsRequest(photo_id: photo.id)
+let comments = try await getComments(apiKey: apiKey, commentsRequest: request)
+comments.forEach { print($0) }   // plain text of each comment
 ```
 
 ---
@@ -370,47 +358,34 @@ getComments(apiKey: apiKey, commentsRequest: request) { result in
 #### fave / unfave *(OAuth required)*
 
 ```swift
-let request = FlickrFaveRequest(photo_id: photo.id)
+let request = AWFlickrFaveRequest(photo_id: photo.id)
 
 // Fave
-fave(
+try await fave(
     apiKey: apiKey, apiSecret: apiSecret,
     oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
     faveRequest: request
-) { result in
-    if case .failure(let error) = result { print("Fave failed:", error) }
-}
+)
 
 // Unfave
-unfave(
+try await unfave(
     apiKey: apiKey, apiSecret: apiSecret,
     oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
     faveRequest: request
-) { result in
-    if case .failure(let error) = result { print("Unfave failed:", error) }
-}
+)
 ```
-
-Both return `Result<Void, Error>` — `.success(())` on success.
 
 ---
 
 #### comment *(OAuth required)*
 
 ```swift
-let request = FlickrCommentRequest(photo_id: photo.id, comment_text: "Great shot!")
-comment(
+let request = AWFlickrCommentRequest(photo_id: photo.id, comment_text: "Great shot!")
+try await comment(
     apiKey: apiKey, apiSecret: apiSecret,
     oauthToken: oauthToken, oauthTokenSecret: oauthTokenSecret,
     commentRequest: request
-) { result in
-    switch result {
-    case .success:
-        print("Comment posted")
-    case .failure(let error):
-        print("Comment failed:", error)
-    }
-}
+)
 ```
 
 ---

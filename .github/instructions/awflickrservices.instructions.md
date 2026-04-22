@@ -9,7 +9,7 @@ applyTo: "**"
 
 ## Project overview
 
-A dependency-free Swift Package for integrating the Flickr API in iOS and macOS apps.
+A Swift Package for integrating the Flickr API in iOS and macOS apps. Has no external dependencies.
 Uses a **protocol mixin pattern**: consumers conform to `AWFlickrOAuthProtocol`
 or `AWFlickrPhotosProtocol` and gain full API access through protocol extension
 default implementations. No subclassing or object injection required.
