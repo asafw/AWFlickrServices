@@ -21,7 +21,7 @@ Before ending the conversation, the AI must:
    ```bash
    git add .github/CONTEXT.md .github/instructions/awflickrservices.instructions.md
    git commit -m "docs(context): update session state"
-   git push origin master
+   git push origin v2
    ```
 
 ## Build / test quick reference
