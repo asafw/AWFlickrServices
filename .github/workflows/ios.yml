@@ -18,12 +18,12 @@ jobs:
 
       - name: Build
         run: |
-          xcodebuild -scheme AWFlickrServices \
+          xcodebuild -scheme AWFlickrServices-Package \
             -destination "generic/platform=iOS Simulator" \
             build
 
       - name: Test
         run: |
-          xcodebuild -scheme AWFlickrServices \
+          xcodebuild -scheme AWFlickrServices-Package \
             -destination "platform=iOS Simulator,name=iPhone 16" \
             test
