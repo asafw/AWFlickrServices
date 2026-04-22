@@ -14,7 +14,7 @@
 
 ## Overview
 
-A dependency-free Swift Package (SPM) for integrating the Flickr API in iOS and macOS apps.
+A Swift Package for integrating the Flickr API in iOS and macOS apps. Has no external dependencies.
 Uses a **protocol mixin pattern** — consumers conform to `AWFlickrOAuthProtocol` or
 `AWFlickrPhotosProtocol` and gain full API access through protocol extension default implementations.
 
@@ -257,16 +257,16 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
-6143f3a  chore: merge ci scheme fix (master)
+cbe46aa  ci: fix YAML syntax in iOS test step (single-line Python)
+f51504c  docs: pin CI badges to master branch
+7f76e7a  ci: dynamically select first available iPhone simulator for iOS tests
+fe47777  ci: use Any iOS Simulator Device destination to fix runner compatibility
+90fa866  docs: update README to v3.0.0 (AW prefix, async/await examples, migration guide)
+b44039f  docs(context): sync instructions and context with 3.0.0 state
 37f4ad8  ci: fix scheme name to AWFlickrServices-Package
 9cd6cb2  docs: add macOS CI badge and update installation to 3.0.0
 9b766f6  ci: add macOS build and test workflow
 8429e79  docs(context): update for 3.0.0 release
-f32b43b  chore: merge v2 into master for 3.0.0 release (tag: 3.0.0)
-ca13e0f  docs(context): update type names to AW-prefixed names
-b1db156  refactor: add AW prefix to all public types (breaking API change)
-eaa3071  docs(context): update session state after inline comment additions
-d3540ec  docs: add detailed inline comments to all non-trivial source code
 ```
 
 ---
