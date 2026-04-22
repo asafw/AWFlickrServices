@@ -255,6 +255,8 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
+ec55d08  feat: expose urlSession requirement on both protocols for session injection
+49dcdb9  docs(context): fix stale commit history, remove duplicate sections, fix AGENTS build command
 b81c3b8  docs: document SIMCTL_CHILD_ env var method for launching iOS demo app
 96ed3f2  refactor: replace all closure-based API with pure async/await (breaking change)
 93bc60a  feat(phase4): async/await overloads for all protocol methods + FlickrService concrete type (73 tests)
@@ -263,8 +265,6 @@ be912c9  docs: fix stale branch name in AGENTS.md and screencapture flag in inst
 a0e0c3c  docs(context): update session state after screenshot refresh
 d1dd608  screenshots: rename authenticated detail to bust GitHub cache
 11173d9  screenshots: update ios authenticated photo detail
-59cd907  screenshots: rename signed-in screenshot to bust GitHub image cache
-5828365  screenshots: update ios authenticated search results
 ```
 
 ---

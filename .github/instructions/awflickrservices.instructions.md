@@ -75,6 +75,14 @@ Both protocols use the **mixin pattern**: implement the method signature in the
 protocol; provide the full implementation in a `public extension`. Conforming
 types get all behaviour for free.
 
+Both `FlickrPhotosProtocol` and `FlickrOAuthProtocol` declare:
+```swift
+var urlSession: URLSession { get }   // default: URLSession.shared
+```
+Conforming types override this to inject a custom session (e.g. a URLProtocol-backed
+ephemeral session for tests). Types conforming to both protocols must provide
+`urlSession` explicitly to resolve the dual-default ambiguity.
+
 `FlickrOAuthProtocol.performOAuthFlow(from:...)` takes an
 `ASWebAuthenticationPresentationContextProviding` directly — works on both iOS
 and macOS. The `ASWebAuthenticationSession` is retained via
@@ -83,9 +91,7 @@ callback fires.
 
 ### FlickrPhotosProtocol methods
 
-Each method has both a **completion-handler** overload and an **async/await** overload.
-The async overload is a default implementation that calls `withCheckedThrowingContinuation`
-around the completion-handler version.
+Each method has a **async/await** signature only (pure `async throws`; no completion handlers).
 
 | Method | OAuth required | Async signature |
 |---|---|---|
@@ -102,10 +108,14 @@ around the completion-handler version.
 ### `FlickrService`
 
 ```swift
-public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {}
+public final class FlickrService: FlickrPhotosProtocol, FlickrOAuthProtocol {
+    public let urlSession: URLSession
+    public init(urlSession: URLSession = .shared)
+}
 ```
 
-Convenience concrete type. All behaviour from protocol extension defaults.
+Convenience concrete type. Stores `urlSession`; all HTTP behaviour via protocol extension defaults.
+Pass a custom `URLSession` at init to intercept requests for testing or custom configuration.
 
 ### Public models
 
