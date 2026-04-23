@@ -7,7 +7,7 @@ import AWFlickrServices
 struct PhotoDetailView: View {
 
     let photo: AWFlickrPhoto
-    @ObservedObject var viewModel: DemoViewModel
+    var viewModel: DemoViewModel
 
     @State private var imageData: Data? = nil
     @State private var info: AWFlickrInfoResponse? = nil

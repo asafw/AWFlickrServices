@@ -6,7 +6,7 @@ import AWFlickrServices
 struct PhotoGridView: View {
 
     let photos: [AWFlickrPhoto]
-    @ObservedObject var viewModel: DemoViewModel
+    var viewModel: DemoViewModel
 
     private let columns = [GridItem(.adaptive(minimum: 120, maximum: 160))]
 

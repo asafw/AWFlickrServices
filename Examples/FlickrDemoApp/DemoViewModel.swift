@@ -2,13 +2,13 @@
 
 import CoreGraphics
 import Foundation
-import Combine
 import ImageIO
+import Observation
 import AWFlickrServices
 
 /// Drives the demo UI. Conforms to FlickrPhotosProtocol and FlickrOAuthProtocol
 /// so it can exercise the full public API surface of AWFlickrServices.
-final class DemoViewModel: ObservableObject, AWFlickrPhotosProtocol, AWFlickrOAuthProtocol {
+@Observable final class DemoViewModel: AWFlickrPhotosProtocol, AWFlickrOAuthProtocol {
 
     // Both protocols declare `urlSession`; provide it explicitly to resolve
     // the dual-conformance ambiguity. URLSession.shared is sufficient for the demo.
@@ -16,17 +16,17 @@ final class DemoViewModel: ObservableObject, AWFlickrPhotosProtocol, AWFlickrOAu
     // MARK: - Configuration
 
     /// Set via FLICKR_API_KEY env var, or paste into the in-app field.
-    @Published var apiKey: String = ProcessInfo.processInfo.environment["FLICKR_API_KEY"] ?? ""
+    var apiKey: String = ProcessInfo.processInfo.environment["FLICKR_API_KEY"] ?? ""
     /// Set via FLICKR_API_SECRET env var, or paste into the in-app field.
-    @Published var apiSecret: String = ProcessInfo.processInfo.environment["FLICKR_API_SECRET"] ?? ""
+    var apiSecret: String = ProcessInfo.processInfo.environment["FLICKR_API_SECRET"] ?? ""
 
     // MARK: - Auth state
 
-    @Published var oauthToken: String = ""
-    @Published var oauthTokenSecret: String = ""
-    @Published var signedInAs: String? = nil
-    @Published var isSigningIn: Bool = false
-    @Published var authError: String? = nil
+    var oauthToken: String = ""
+    var oauthTokenSecret: String = ""
+    var signedInAs: String? = nil
+    var isSigningIn: Bool = false
+    var authError: String? = nil
 
     var isAuthenticated: Bool { !oauthToken.isEmpty }
 
@@ -34,14 +34,12 @@ final class DemoViewModel: ObservableObject, AWFlickrPhotosProtocol, AWFlickrOAu
 
     // MARK: - Search state
 
-    @Published var searchText: String = ""
-    @Published var photos: [AWFlickrPhoto] = []
-    @Published var isLoading: Bool = false
-    @Published var errorMessage: String? = nil
+    var searchText: String = ""
+    var photos: [AWFlickrPhoto] = []
+    var isLoading: Bool = false
+    var errorMessage: String? = nil
     /// Set by MOCK_DETAIL seam — ContentView presents a detail sheet for the first photo.
-    @Published var showScreenshotDetail: Bool = false
-
-    private var cancellables = Set<AnyCancellable>()
+    var showScreenshotDetail: Bool = false
 
     #if DEBUG
     /// Pre-populated by MOCK_PHOTOS seam so PhotoDetailView skips network calls.
@@ -81,13 +79,13 @@ final class DemoViewModel: ObservableObject, AWFlickrPhotosProtocol, AWFlickrOAu
                 // Photos will be set synchronously below — open sheet immediately.
                 showScreenshotDetail = true
             } else {
-                // Photos arrive asynchronously via search; observe and open once they appear.
-                $photos
-                    .filter { !$0.isEmpty }
-                    .first()
-                    .receive(on: DispatchQueue.main)
-                    .sink { [weak self] _ in self?.showScreenshotDetail = true }
-                    .store(in: &cancellables)
+                // Photos arrive asynchronously via search; poll until non-empty.
+                Task { @MainActor [weak self] in
+                    while self?.photos.isEmpty == true {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                    self?.showScreenshotDetail = true
+                }
             }
         }
 

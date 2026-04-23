@@ -75,14 +75,14 @@ AWFlickrServices/
 │   └── FlickrPhotosProtocol.swift    ← Public photos protocol + default impl
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI source files (macOS + iOS)
 │   ├── FlickrDemoApp.swift           ← @main App; NSApp.activate on macOS via #if canImport(AppKit)
-│   ├── DemoViewModel.swift           ← ObservableObject; conforms to `AWFlickrPhotosProtocol` + `AWFlickrOAuthProtocol`
-│   ├── ContentView.swift             ← NavigationStack (13+) / NavigationView (12) + API key field
+│   ├── DemoViewModel.swift           ← @Observable; conforms to `AWFlickrPhotosProtocol` + `AWFlickrOAuthProtocol`
+│   ├── ContentView.swift             ← NavigationStack + API key field
 │   ├── AuthView.swift                ← OAuth sign-in/sign-out panel with API secret SecureField
 │   ├── PhotoGridView.swift           ← LazyVGrid thumbnails; PlatformImage cross-platform alias
 │   ├── PhotoDetailView.swift         ← HStack/VStack adaptive via horizontalSizeClass; @State actionError shows fave/comment failures
 │   ├── PlatformImage.swift           ← typealias PlatformImage = NSImage/UIImage + Image(platformImage:)
 │   └── PresentationContext.swift     ← ASWebAuthenticationPresentationContextProviding; iOS uses UIWindowScene.keyWindow (iOS 15+)
-├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 16+); reuses FlickrDemoApp/ sources
+├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 17+); reuses FlickrDemoApp/ sources
 │   ├── project.yml                   ← XcodeGen spec; run `xcodegen generate` to create .xcodeproj
 │   ├── Screenshots/FlickrDemoScreenshots.swift  ← UITest screenshot pipeline (5 tests; MOCK_PHOTOS seam)
 │   └── .gitignore                    ← ignores the generated .xcodeproj
@@ -98,7 +98,7 @@ AWFlickrServices/
 │   ├── macos_screenshots.sh          ← Launches macOS app 3 times (empty, mock photos, mock detail); captures windows
 │   ├── extract_screenshots.py        ← Extracts XCTAttachment PNGs from .xcresult bundles
 │   └── capture_macos_window.py       ← Quartz bounds + screencapture -R; no accessibility permissions needed
-├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets
+├── Package.swift                     ← swift-tools-version:5.9, iOS 17+, macOS 14+; 4 targets
 ├── README.md
 ├── AGENTS.md
 └── .github/
@@ -226,7 +226,7 @@ swift run FlickrDemoApp
 
 - Reads key from `FLICKR_API_KEY` env var first; falls back to `/tmp/flickr_api_key`.
 - `FlickrDemoApp.swift` calls `NSApp.setActivationPolicy(.regular)` + `NSApp.activate(ignoringOtherApps: true)` in `.onAppear` to work around the standard macOS behaviour where `swift run`-launched processes don’t become the foreground app.
-- macOS 12 uses `NavigationView`; macOS 13+ uses `NavigationStack` (both via `#available` in ContentView).
+- macOS 14+ uses `NavigationStack`. `ContentView` no longer needs an `#available` guard.
 
 ### iOS Simulator
 
