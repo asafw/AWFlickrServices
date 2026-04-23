@@ -7,8 +7,8 @@
 
 ## Current branch: `v2` (active development)
 
-`master` = v3.0.0 (latest stable — v2 merged in, full AW-prefix rename)  
-`v2` = active development branch — all changes merged to master at 3.0.0
+`master` = v3.1.0 (latest stable — @Observable demo, iOS 17+/macOS 14+)  
+`v2` = active development branch — all changes merged to master at 3.1.0
 
 ---
 
@@ -257,6 +257,9 @@ SIMCTL_CHILD_FLICKR_API_KEY="$(cat /tmp/flickr_api_key | tr -d '[:space:]')" \
 ## Commit history (latest 10)
 
 ```
+4b1c669  docs: bump README to v3.1.0 (iOS 17+/macOS 14+, @Observable migration note)
+71fa8f2  refactor(demo): migrate DemoViewModel to @Observable; bump platform to iOS 17+/macOS 14+
+3788b0e  docs(context): update session state after CI fixes and README update
 cbe46aa  ci: fix YAML syntax in iOS test step (single-line Python)
 f51504c  docs: pin CI badges to master branch
 7f76e7a  ci: dynamically select first available iPhone simulator for iOS tests
@@ -264,9 +267,6 @@ fe47777  ci: use Any iOS Simulator Device destination to fix runner compatibilit
 90fa866  docs: update README to v3.0.0 (AW prefix, async/await examples, migration guide)
 b44039f  docs(context): sync instructions and context with 3.0.0 state
 37f4ad8  ci: fix scheme name to AWFlickrServices-Package
-9cd6cb2  docs: add macOS CI badge and update installation to 3.0.0
-9b766f6  ci: add macOS build and test workflow
-8429e79  docs(context): update for 3.0.0 release
 ```
 
 ---
