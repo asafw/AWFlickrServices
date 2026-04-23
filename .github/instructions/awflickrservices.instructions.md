@@ -20,7 +20,7 @@ public types (breaking change), detailed inline comments. v3.1 (2026): demo app 
 to `@Observable` (Observation framework); platform floor raised to iOS 17+ / macOS 14+.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
-- **Active branch:** `v2` — all development here; `master` is stable at v3.0.0
+- **Active branch:** `v2` — all development here; `master` is stable at v3.1.0
 - **Authoritative state:** `.github/CONTEXT.md` — always read before making changes.
 
 ---
@@ -147,7 +147,7 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
 
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
   `CommonCrypto` is available system-wide on Apple platforms.
-- **No UIKit dependency** — iOS 17+ and macOS 14+. `downloadImageData(from:completion:)`
+- **No UIKit dependency** — iOS 17+ and macOS 14+. `downloadImageData(from:)`
   returns `Data`; callers convert to `UIImage`/`NSImage` themselves.
 - **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods are `async throws`. No completion handlers remain. `URLSession.data(for:)` is used throughout `FlickrAPIService`.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks for `{"stat":"fail",...}` before

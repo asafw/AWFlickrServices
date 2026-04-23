@@ -144,9 +144,9 @@ AWFlickrServices/
 
 - **`urlSession` protocol requirement** — both `AWFlickrPhotosProtocol` and `AWFlickrOAuthProtocol` expose `var urlSession: URLSession { get }` with a default of `URLSession.shared`. Protocol extension default implementations create `FlickrAPIService(session: urlSession)` — conforming types override only `urlSession` to inject a test or custom session without overriding every method.
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
-- **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData` returns `Data`.
+- **No UIKit dependency** — iOS 17+ and macOS 14+. `downloadImageData` returns `Data`.
 - **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods use `async throws`. No completion handlers remain in the public API.
-- **`URLSession.data(for:)`** — iOS 15+/macOS 12+ async API used in `FlickrAPIService`. Works with `CapturingURLProtocol` in tests.
+- **`URLSession.data(for:)`** — iOS 17+/macOS 14+ async API used in `FlickrAPIService`. Works with `CapturingURLProtocol` in tests.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks stat:fail for GET/decode endpoints (`getPhotos`, `getInfo`, `getComments`); `checkFlickrError(_:)` checks stat:fail for void POST endpoints (`fave`, `unfave`, `comment`). Both throw `.apiError(code:message:)`. All six endpoints have unit test coverage.
 - **OAuth 1.0a HMAC-SHA1** — signing key is `"apiSecret&oauthTokenSecret"`. Request-token step uses `"apiSecret&"` (empty token secret).
 - **RFC 3986 percent-encoding** — unified `rfc3986Encoded(_:)` helper; `alphanumerics ∪ "-._~"` only.
