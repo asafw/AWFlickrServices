@@ -3,7 +3,7 @@ name: FlickrDemoApp-iOS
 options:
   bundleIdPrefix: com.example
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   xcodeVersion: "16.0"
 
 # Local reference to the AWFlickrServices package (two levels up from this file)

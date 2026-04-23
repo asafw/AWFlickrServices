@@ -4,7 +4,7 @@ import SwiftUI
 
 struct AuthView: View {
 
-    @ObservedObject var viewModel: DemoViewModel
+    @Bindable var viewModel: DemoViewModel
 
     var body: some View {
         if viewModel.isAuthenticated {

@@ -4,18 +4,10 @@ import SwiftUI
 
 struct ContentView: View {
 
-    @StateObject private var viewModel = DemoViewModel()
+    @State private var viewModel = DemoViewModel()
 
     var body: some View {
-        // NavigationStack (macOS 13+/iOS 16+) enables NavigationLink in PhotoGridView.
-        // Fall back to NavigationView on macOS 12.
-        Group {
-            if #available(macOS 13.0, *) {
-                NavigationStack { navigationContent }
-            } else {
-                NavigationView { navigationContent }
-            }
-        }
+        NavigationStack { navigationContent }
         // MOCK_DETAIL seam: presents the first photo's detail view as a sheet
         // so script-driven macOS screenshots can capture it without accessibility.
         .sheet(isPresented: $viewModel.showScreenshotDetail) {

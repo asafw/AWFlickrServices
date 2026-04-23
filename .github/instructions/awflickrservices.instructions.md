@@ -16,7 +16,8 @@ default implementations. No subclassing or object injection required.
 
 Originally written in 2020. v2.0 (2026): iOS 16+ / macOS 12+, pure `async throws` API,
 zero external dependencies, no UIKit dependency. v3.0 (2026): `AW` prefix added to all
-public types (breaking change), detailed inline comments.
+public types (breaking change), detailed inline comments. v3.1 (2026): demo app migrated
+to `@Observable` (Observation framework); platform floor raised to iOS 17+ / macOS 14+.
 
 - **Repo:** `asafw/AWFlickrServices` (public) — `~/Desktop/asafw/AWFlickrServices/`
 - **Active branch:** `v2` — all development here; `master` is stable at v3.0.0
@@ -43,9 +44,9 @@ AWFlickrServices/
 ├── Tests/AWFlickrServicesIntegrationTests/
 │   └── AWFlickrServicesIntegrationTests.swift  ← 16 live tests; skip without credentials
 ├── Examples/FlickrDemoApp/           ← Shared SwiftUI sources (macOS + iOS)
-│   ├── DemoViewModel.swift           ← #if DEBUG seams: -mockAuth, AUTO_SEARCH, MOCK_PHOTOS, MOCK_DETAIL
+│   ├── DemoViewModel.swift           ← @Observable; #if DEBUG seams: -mockAuth, AUTO_SEARCH, MOCK_PHOTOS, MOCK_DETAIL
 │   └── ContentView.swift             ← .sheet(isPresented: $viewModel.showScreenshotDetail) for MOCK_DETAIL
-├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 16+)
+├── Examples/FlickrDemoApp-iOS/       ← XcodeGen project (iOS 17+)
 │   ├── project.yml                   ← Includes FlickrDemoScreenshots UITest target
 │   └── Screenshots/FlickrDemoScreenshots.swift  ← 5 screenshot UITests using MOCK_PHOTOS seam
 ├── screenshots/
@@ -56,7 +57,7 @@ AWFlickrServices/
 │   ├── macos_screenshots.sh          ← 3-launch macOS script (empty, mock photos, mock detail)
 │   ├── extract_screenshots.py        ← Extracts XCTAttachment PNGs from .xcresult bundles
 │   └── capture_macos_window.py       ← Quartz bounds + `screencapture -l <windowID>`; works even when app is behind other windows
-├── Package.swift                     ← swift-tools-version:5.9, iOS 16+, macOS 12+; 4 targets (AWFlickrServices, AWFlickrServicesTests, AWFlickrServicesIntegrationTests, FlickrDemoApp)
+├── Package.swift                     ← swift-tools-version:5.9, iOS 17+, macOS 14+; 4 targets (AWFlickrServices, AWFlickrServicesTests, AWFlickrServicesIntegrationTests, FlickrDemoApp)
 ├── README.md
 └── AGENTS.md
 ```
@@ -146,9 +147,9 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
 
 - **Zero external dependencies** — `Package.swift` must stay dependency-free.
   `CommonCrypto` is available system-wide on Apple platforms.
-- **No UIKit dependency** — iOS 16+ and macOS 12+. `downloadImageData(from:completion:)`
+- **No UIKit dependency** — iOS 17+ and macOS 14+. `downloadImageData(from:completion:)`
   returns `Data`; callers convert to `UIImage`/`NSImage` themselves.
-- **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods are `async throws`. No completion handlers remain. `URLSession.data(for:)` (iOS 15+/macOS 12+) is used throughout `FlickrAPIService`.
+- **Pure `async throws` API** — all public protocol methods and `FlickrAPIService` methods are `async throws`. No completion handlers remain. `URLSession.data(for:)` is used throughout `FlickrAPIService`.
 - **`stat:fail` detection** — `decodeFlickrJSON<T>` checks for `{"stat":"fail",...}` before
   attempting the real type decode and throws `AWFlickrAPIError.apiError(code:message:)`.
   `checkFlickrError(_:)` does the same for void-returning POST endpoints (`fave`, `unfave`, `comment`).
@@ -160,7 +161,8 @@ Pass a custom `URLSession` at init to intercept requests for testing or custom c
 - **RFC 3986 percent-encoding** — all OAuth parameter values are encoded using
   only the unreserved character set (`alphanumerics ∪ "-._~"`). The `internal`
   `rfc3986Encoded(_:)` helper in `FlickrOAuthUtilities.swift` implements this.
-- **Alphanumeric OAuth nonce** — `UUID().uuidString` with hyphens stripped.
+- **`@Observable` demo app** — `DemoViewModel` uses the Observation framework (`@Observable`, no `@Published`). `ContentView` uses `@State private var viewModel = DemoViewModel()`. Child views that bind (`AuthView`) use `@Bindable`; views that only read use plain `var viewModel: DemoViewModel`. Do not revert to `ObservableObject` / `@StateObject` / `@ObservedObject`.
+- **`NavigationStack` only** — the macOS 14+ / iOS 17+ minimum means no `#available` guard and no `NavigationView` fallback.
 - **`FlickrPhotosRequest.page` / `per_page` are `Int`** (v2 — changed from `String` in v1).
   The conversion to string is done internally inside `FlickrAPIService`.
 - **`Comment.content`** — the Flickr JSON field `_content` is decoded via `CodingKeys`

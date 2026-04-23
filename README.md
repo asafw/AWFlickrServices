@@ -10,12 +10,12 @@ implementations. No subclassing or dependency injection required.
 
 ## Version
 
-* 3.0.0
+* 3.1.0
 
 ## Requirements
 
 * Xcode 16+ / Swift 5.9
-* iOS 16+ **or** macOS 12+
+* iOS 17+ **or** macOS 14+
 * A Flickr API Key (and Secret for OAuth operations)
 
 ## Package capabilities
@@ -27,6 +27,17 @@ implementations. No subclassing or dependency injection required.
 | `AWFlickrOAuthProtocol` | `performOAuthFlow` | — (drives the sign-in flow) |
 
 All public model types conform to `Sendable`.
+
+## Migrating from v3.0
+
+| Area | v3.0 | v3.1 |
+|---|---|---|
+| iOS minimum | 16 | 17 |
+| macOS minimum | 12 | 14 |
+| `DemoViewModel` | `ObservableObject` | `@Observable` (Observation framework) |
+
+No public API changes — update your `Package.swift` platform floors and switch the demo app
+to `@Observable` / `@Bindable` if you copied it as a starting point.
 
 ## Migrating from v2
 
@@ -56,7 +67,7 @@ All public model types conform to `Sendable`.
 | `Comment._content` | `Comment.content` |
 | `getImage(from:completion:)` returns `UIImage` | `downloadImageData(from:completion:)` returns `Data` |
 | Completion handlers | Pure `async throws` — no completion handlers |
-| iOS 13+ | iOS 16+ |
+| iOS 13+ | iOS 17+ |
 
 ## Installation
 
@@ -66,7 +77,7 @@ In `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/asafw/AWFlickrServices", from: "3.0.0")
+    .package(url: "https://github.com/asafw/AWFlickrServices", from: "3.1.0")
 ],
 targets: [
     .target(
